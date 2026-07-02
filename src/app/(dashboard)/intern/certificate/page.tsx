@@ -1,8 +1,18 @@
 import { createPageMetadata } from "@/utils/create-page-metadata";
-import { DashboardPlaceholder } from "@/components/shared/dashboard-placeholder";
+import { InternCertificate } from "@/features/intern/components/intern-certificate";
+import { getInternCertificate } from "@/features/intern/services/certificate.actions";
+import type { ComponentProps } from "react";
 
 export const metadata = createPageMetadata("Certificate");
 
-export default function CertificatePage() {
-  return <DashboardPlaceholder title="Certificate" />;
+export default async function CertificatePage() {
+  const certificate = await getInternCertificate();
+
+  return (
+    <InternCertificate
+      certificate={
+        certificate as unknown as ComponentProps<typeof InternCertificate>["certificate"]
+      }
+    />
+  );
 }

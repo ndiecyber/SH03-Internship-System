@@ -1,0 +1,321 @@
+"use client";
+
+import { useState } from "react";
+import { Briefcase, Link as LinkIcon, Send, X, CheckCircle, Clock, AlertTriangle, HelpCircle } from "lucide-react";
+import { applyForProgramAction } from "../services/application.actions";
+import { Button } from "@/components/ui/button";
+
+type Program = {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  period: string | null;
+};
+
+type Application = {
+  id: string;
+  programId: string;
+  status: string;
+  cvUrl: string | null;
+  notes: string | null;
+  createdAt: Date;
+  program: Program;
+};
+
+type InternRegistrationProps = {
+  programs: Program[];
+  applications: Application[];
+};
+
+export function InternRegistration({ programs, applications: initialApps }: Readonly<InternRegistrationProps>) {
+  const [applications, setApplications] = useState<Application[]>(initialApps);
+  const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+  const [cvUrl, setCvUrl] = useState("");
+  const [notes, setNotes] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleOpenForm = (program: Program) => {
+    setSelectedProgram(program);
+    setCvUrl("");
+    setNotes("");
+    setError(null);
+    setSuccess(false);
+  };
+
+  const handleCloseForm = () => {
+    setSelectedProgram(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProgram) return;
+    if (!cvUrl) {
+      setError("Link CV wajib diisi.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const res = await applyForProgramAction({
+        programId: selectedProgram.id,
+        cvUrl,
+        notes
+      });
+
+      if (res.error) {
+        setError(res.error);
+      } else {
+        setSuccess(true);
+        // Add new application to state for instant UI update
+        const newApp: Application = {
+          id: Math.random().toString(),
+          programId: selectedProgram.id,
+          status: "pending",
+          cvUrl,
+          notes,
+          createdAt: new Date(),
+          program: selectedProgram
+        };
+        setApplications((prev) => [newApp, ...prev]);
+        setTimeout(() => {
+          setSelectedProgram(null);
+        }, 1500);
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Gagal mengirim pendaftaran.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Page Header */}
+      <div className="bg-white/70 p-6 rounded-2xl border border-slate-100 shadow-sm backdrop-blur-md">
+        <h1 className="text-2xl font-bold text-slate-800 font-sans">Pendaftaran Program Magang</h1>
+        <p className="text-sm text-slate-500">Pilih program magang aktif yang sesuai dengan keahlian Anda.</p>
+      </div>
+
+      {/* Applications Status Panel */}
+      {applications.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <Clock className="h-5 w-5 text-blue-600" />
+            <span>Status Pendaftaran Saya</span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {applications.map((app) => (
+              <div
+                key={app.id}
+                className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex justify-between items-start mb-3">
+                    <h3 className="font-bold text-slate-800 text-sm md:text-base">
+                      {app.program.title}
+                    </h3>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider flex items-center gap-1 ${
+                        app.status === "approved"
+                          ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                          : app.status === "rejected"
+                          ? "bg-red-50 text-red-600 border border-red-100"
+                          : "bg-amber-50 text-amber-600 border border-amber-100"
+                      }`}
+                    >
+                      {app.status === "approved" ? (
+                        <CheckCircle className="h-3 w-3" />
+                      ) : app.status === "rejected" ? (
+                        <X className="h-3 w-3" />
+                      ) : (
+                        <Clock className="h-3 w-3" />
+                      )}
+                      <span>
+                        {app.status === "approved"
+                          ? "Diterima"
+                          : app.status === "rejected"
+                          ? "Ditolak"
+                          : "Pending"}
+                      </span>
+                    </span>
+                  </div>
+                  <p className="text-slate-500 text-xs mb-3 flex items-center gap-1">
+                    <span>Terdaftar pada:</span>
+                    <span className="font-medium text-slate-700">
+                      {new Date(app.createdAt).toLocaleDateString("id-ID", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric"
+                      })}
+                    </span>
+                  </p>
+                </div>
+                {app.cvUrl && (
+                  <a
+                    href={app.cvUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-semibold self-start"
+                  >
+                    <LinkIcon className="h-3.5 w-3.5" />
+                    <span>Lihat CV yang Dikirim</span>
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Program Vacancy List */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+          <Briefcase className="h-5 w-5 text-blue-600" />
+          <span>Daftar Program Magang Aktif</span>
+        </h2>
+
+        {programs.length === 0 ? (
+          <div className="bg-white/50 border border-dashed border-slate-200 rounded-2xl p-12 text-center">
+            <HelpCircle className="h-10 w-10 text-slate-400 mx-auto mb-3" />
+            <p className="text-slate-500 font-medium text-sm">Tidak ada program magang yang aktif saat ini.</p>
+            <p className="text-xs text-slate-400 mt-1">Silakan hubungi administrator untuk ketersediaan magang.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {programs.map((program) => {
+              // Check if user already applied to this program
+              const isApplied = applications.some((app) => app.programId === program.id);
+              
+              return (
+                <div
+                  key={program.id}
+                  className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition duration-300 flex flex-col justify-between"
+                >
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-lg mb-1">{program.title}</h3>
+                    <p className="text-xs text-slate-400 mb-4">{program.period}</p>
+                    <p className="text-slate-600 text-sm mb-6 line-clamp-3">
+                      {program.description}
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={() => handleOpenForm(program)}
+                    disabled={isApplied}
+                    className={`w-full font-medium ${
+                      isApplied
+                        ? "bg-slate-100 text-slate-400 border border-slate-200 hover:bg-slate-100 cursor-not-allowed"
+                        : "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
+                    }`}
+                  >
+                    {isApplied ? "Sudah Mendaftar" : "Daftar Sekarang"}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* Application Form Drawer/Modal Overlay */}
+      {selectedProgram && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-white rounded-2xl border border-slate-100 p-6 shadow-2xl space-y-4 transform animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b pb-3">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Formulir Pendaftaran Magang</h3>
+                <p className="text-xs text-slate-500">Posisi: {selectedProgram.title}</p>
+              </div>
+              <button
+                onClick={handleCloseForm}
+                className="text-slate-400 hover:text-slate-600 rounded-full p-1 hover:bg-slate-100 transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {success ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
+                <CheckCircle className="h-14 w-14 text-emerald-500 animate-bounce" />
+                <h4 className="font-bold text-slate-800 text-lg">Pendaftaran Berhasil Dikirim!</h4>
+                <p className="text-sm text-slate-500">Pendaftaran Anda sedang diproses oleh administrator.</p>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {error && (
+                  <div className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700" htmlFor="cv-link">
+                    Link CV (Google Drive / PDF Online)
+                  </label>
+                  <div className="relative">
+                    <LinkIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      id="cv-link"
+                      type="url"
+                      placeholder="https://drive.google.com/..."
+                      value={cvUrl}
+                      onChange={(e) => setCvUrl(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400">Pastikan izin akses dokumen diatur ke &quot;Anyone with link&quot; (publik).</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700" htmlFor="cv-notes">
+                    Catatan Tambahan / Motivasi (Opsional)
+                  </label>
+                  <textarea
+                    id="cv-notes"
+                    rows={3}
+                    placeholder="Mengapa Anda tertarik dengan posisi ini? Sebutkan pengalaman relevan Anda..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 py-2 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 border-t pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCloseForm}
+                    className="border-slate-200 text-slate-600 hover:bg-slate-50 font-medium"
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="bg-blue-600 hover:bg-blue-700 font-medium text-white flex items-center gap-1.5"
+                  >
+                    {isSubmitting ? (
+                      "Mengirim..."
+                    ) : (
+                      <>
+                        <Send className="h-3.5 w-3.5" />
+                        <span>Kirim Pendaftaran</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

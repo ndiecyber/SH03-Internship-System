@@ -1,264 +1,181 @@
 import { createPageMetadata } from "@/utils/create-page-metadata";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/db";
+import { ClipboardList, CheckCircle, BookOpen, Award, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import {
-  CalendarDays,
-  CheckCircle2,
-  ClipboardList,
-  Clock3,
-  FileText,
-  GraduationCap,
-  NotebookPen,
-  TrendingUp,
-  UserRound,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 export const metadata = createPageMetadata("Intern Dashboard");
 
-const summaryCards = [
-  {
-    label: "Status Magang",
-    value: "Aktif",
-    note: "Program berjalan sesuai jadwal",
-    icon: GraduationCap,
-  },
-  {
-    label: "Logbook Minggu Ini",
-    value: "4/5",
-    note: "Satu catatan perlu dilengkapi",
-    icon: NotebookPen,
-  },
-  {
-    label: "Progress",
-    value: "68%",
-    note: "Target pembelajaran bulan ini",
-    icon: TrendingUp,
-  },
-  {
-    label: "Sisa Hari",
-    value: "24",
-    note: "Menuju akhir periode magang",
-    icon: CalendarDays,
-  },
-];
+export default async function InternDashboardPage() {
+  const session = await auth();
+  const userName = session?.user?.name || "Intern";
+  const userId = session?.user?.id;
 
-const quickActions = [
-  {
-    href: "/intern/logbook",
-    label: "Isi Logbook",
-    description: "Catat aktivitas dan kendala harian.",
-    icon: ClipboardList,
-  },
-  {
-    href: "/intern/progress",
-    label: "Lihat Progress",
-    description: "Pantau capaian tugas dan evaluasi.",
-    icon: TrendingUp,
-  },
-  {
-    href: "/intern/internship-registration",
-    label: "Data Registrasi",
-    description: "Periksa data program dan penempatan.",
-    icon: FileText,
-  },
-];
+  // Fetch counts
+  const totalLogs = userId
+    ? await prisma.logbook.count({ where: { userId } })
+    : 0;
 
-const timelineItems = [
-  {
-    time: "09.00",
-    title: "Standup bersama mentor",
-    description: "Update pekerjaan, blocker, dan target hari ini.",
-  },
-  {
-    time: "13.30",
-    title: "Pengerjaan tugas utama",
-    description: "Lanjutkan modul yang sudah ditugaskan mentor.",
-  },
-  {
-    time: "16.00",
-    title: "Submit logbook",
-    description: "Lengkapi ringkasan aktivitas sebelum pulang.",
-  },
-];
+  const approvedLogs = userId
+    ? await prisma.logbook.count({ where: { userId, status: "approved" } })
+    : 0;
 
-const requirements = [
-  "Lengkapi profil peserta",
-  "Isi logbook harian",
-  "Pantau progress mingguan",
-  "Unduh sertifikat saat program selesai",
-];
+  const application = userId
+    ? await prisma.application.findFirst({
+        where: { userId, status: "approved" },
+        include: { program: true }
+      })
+    : null;
 
-export default function InternDashboardPage() {
+  const hasCertificate = userId
+    ? await prisma.certificate.findUnique({ where: { userId } })
+    : null;
+
+  const logbooks = userId
+    ? await prisma.logbook.findMany({
+        where: { userId },
+        take: 3,
+        orderBy: { date: "desc" }
+      })
+    : [];
+
+  const averageProgress = logbooks.length > 0 
+    ? Math.round(logbooks.reduce((acc, curr) => acc + curr.progress, 0) / logbooks.length)
+    : 0;
+
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-lg border bg-background">
-        <div className="grid gap-6 p-6 lg:grid-cols-[1fr_320px] lg:p-8">
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-primary">
-                Dashboard Peserta Magang
-              </p>
-              <h1 className="max-w-3xl text-3xl font-semibold text-foreground">
-                Selamat datang, pantau kegiatan magang kamu dari sini.
-              </h1>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                Lihat status program, isi logbook, pantau progress, dan akses
-                kebutuhan utama selama magang.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <Button asChild>
-                <Link href="/intern/logbook">
-                  <NotebookPen className="mr-2 h-4 w-4" />
-                  Isi Logbook
-                </Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/intern/progress">
-                  <TrendingUp className="mr-2 h-4 w-4" />
-                  Cek Progress
-                </Link>
-              </Button>
-            </div>
-          </div>
+    <div className="space-y-8 animate-in fade-in duration-300">
+      {/* Welcome Banner */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 md:p-8 text-white shadow-md">
+        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Halo, {userName}!</h1>
+        <p className="text-blue-100 text-sm mt-1 max-w-xl">
+          {application
+            ? `Anda terdaftar di program magang "${application.program.title}". Laporkan aktivitas harian Anda tepat waktu.`
+            : "Silakan mendaftar program magang aktif pada menu Pendaftaran di bilah navigasi."}
+        </p>
+      </div>
 
-          <div className="rounded-lg border bg-muted/40 p-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <UserRound className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Mentor Pembimbing</p>
-                <p className="text-sm text-muted-foreground">
-                  Belum ditampilkan dari database
-                </p>
-              </div>
-            </div>
-            <div className="mt-5 space-y-3 text-sm">
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-muted-foreground">Divisi</span>
-                <span className="font-medium">Product Development</span>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-muted-foreground">Periode</span>
-                <span className="font-medium">Jun - Agu 2026</span>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-muted-foreground">Status</span>
-                <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                  Aktif
-                </span>
-              </div>
-            </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+          <div className="rounded-xl p-3 bg-blue-50 text-blue-600 shrink-0">
+            <ClipboardList className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Logbook Dikirim</p>
+            <p className="text-2xl font-bold text-slate-800">{totalLogs} Laporan</p>
           </div>
         </div>
-      </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {summaryCards.map((card) => {
-          const Icon = card.icon;
-
-          return (
-            <div
-              className="rounded-lg border bg-background p-5"
-              key={card.label}
-            >
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-sm text-muted-foreground">{card.label}</p>
-                <div className="flex h-9 w-9 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
-                  <Icon className="h-4 w-4" />
-                </div>
-              </div>
-              <p className="mt-4 text-2xl font-semibold">{card.value}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{card.note}</p>
-            </div>
-          );
-        })}
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[1fr_380px]">
-        <div className="space-y-4">
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+          <div className="rounded-xl p-3 bg-emerald-50 text-emerald-600 shrink-0">
+            <CheckCircle className="h-6 w-6" />
+          </div>
           <div>
-            <h2 className="text-lg font-semibold">Aksi Cepat</h2>
-            <p className="text-sm text-muted-foreground">
-              Pintasan ke aktivitas yang paling sering dipakai peserta.
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Logbook Disetujui</p>
+            <p className="text-2xl font-bold text-slate-800">{approvedLogs} Laporan</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+          <div className="rounded-xl p-3 bg-indigo-50 text-indigo-600 shrink-0">
+            <BookOpen className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Rata-rata Progress</p>
+            <p className="text-2xl font-bold text-slate-800">{averageProgress}%</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+          <div className="rounded-xl p-3 bg-sky-50 text-sky-600 shrink-0">
+            <Award className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sertifikat Kelulusan</p>
+            <p className="text-sm font-bold text-slate-800 mt-1">
+              {hasCertificate ? (
+                <span className="text-emerald-600">Sudah Rilis</span>
+              ) : (
+                <span className="text-slate-400">Belum Tersedia</span>
+              )}
             </p>
           </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {quickActions.map((action) => {
-              const Icon = action.icon;
+        </div>
+      </div>
 
-              return (
-                <Link
-                  className="group rounded-lg border bg-background p-5 transition-colors hover:border-primary/40 hover:bg-accent"
-                  href={action.href}
-                  key={action.href}
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <h3 className="mt-4 text-sm font-semibold group-hover:text-accent-foreground">
-                    {action.label}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {action.description}
-                  </p>
-                </Link>
-              );
-            })}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Latest entries */}
+        <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-6 lg:col-span-2 space-y-6">
+          <div className="flex justify-between items-center border-b pb-4 border-slate-50">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800">Laporan Aktivitas Terakhir</h2>
+              <p className="text-xs text-slate-500">Daftar logbook harian yang baru saja Anda laporkan.</p>
+            </div>
+            <Link
+              href="/intern/logbook"
+              className="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1"
+            >
+              <span>Isi Baru</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
 
-          <div className="rounded-lg border bg-background p-5">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold">Checklist Peserta</h2>
-                <p className="text-sm text-muted-foreground">
-                  Hal yang perlu dijaga selama program berjalan.
-                </p>
+          <div className="space-y-4">
+            {logbooks.length === 0 ? (
+              <div className="text-center py-8 text-slate-400 text-sm">
+                Belum ada aktivitas dilaporkan. Klik &quot;Isi Baru&quot; untuk memulai.
               </div>
-              <CheckCircle2 className="h-5 w-5 text-primary" />
-            </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {requirements.map((item) => (
+            ) : (
+              logbooks.map((log) => (
                 <div
-                  className="flex items-center gap-3 rounded-md border bg-muted/30 p-3"
-                  key={item}
+                  key={log.id}
+                  className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100"
                 >
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
-                  <span className="text-sm">{item}</span>
+                  <div className="space-y-1">
+                    <p className="text-xs text-slate-400">
+                      {new Date(log.date).toLocaleDateString("id-ID", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric"
+                      })}
+                    </p>
+                    <p className="text-sm text-slate-700 font-medium line-clamp-1">{log.activity}</p>
+                  </div>
+                  
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider self-start sm:self-center ${
+                      log.status === "approved"
+                        ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                        : log.status === "rejected"
+                        ? "bg-red-50 text-red-600 border border-red-100"
+                        : "bg-amber-50 text-amber-600 border border-amber-100"
+                    }`}
+                  >
+                    {log.status === "approved" ? "Disetujui" : log.status === "rejected" ? "Ditolak" : "Pending"}
+                  </span>
                 </div>
-              ))}
-            </div>
+              ))
+            )}
           </div>
         </div>
 
-        <aside className="rounded-lg border bg-background p-5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold">Agenda Hari Ini</h2>
-              <p className="text-sm text-muted-foreground">
-                Rencana kerja yang perlu diperhatikan.
-              </p>
-            </div>
-            <Clock3 className="h-5 w-5 text-primary" />
+        {/* Info card */}
+        <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-6 space-y-4 flex flex-col justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800 border-b pb-4 border-slate-50">Petunjuk Logbook</h2>
+            <p className="text-sm text-slate-600 leading-relaxed mt-3">
+              Laporkan aktivitas magang Anda setiap hari kerja. Pastikan deskripsi pekerjaan ditulis dengan jelas dan terukur agar memudahkan pembimbing menilai perkembangan Anda.
+            </p>
           </div>
-          <div className="mt-5 space-y-4">
-            {timelineItems.map((item) => (
-              <div className="flex gap-3" key={`${item.time}-${item.title}`}>
-                <div className="w-14 shrink-0 text-sm font-medium text-primary">
-                  {item.time}
-                </div>
-                <div className="min-w-0 border-l pl-4">
-                  <p className="text-sm font-semibold">{item.title}</p>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    {item.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </aside>
-      </section>
+          <Link
+            href="/intern/logbook"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-center text-xs py-3 rounded-lg block"
+          >
+            Tulis Laporan Sekarang
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

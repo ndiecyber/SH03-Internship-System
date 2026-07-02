@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth/config";
 import { getRequiredRoleForPath } from "@/lib/auth/role-guards";
+
+const { auth } = NextAuth(authConfig);
 
 export default auth((request) => {
   const requiredRole = getRequiredRoleForPath(request.nextUrl.pathname);

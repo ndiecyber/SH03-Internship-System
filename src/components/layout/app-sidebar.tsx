@@ -1,34 +1,87 @@
 import Link from "next/link";
+import { auth } from "@/auth";
 import { roleNavigation } from "@/lib/navigation/role-navigation";
+import { LayoutDashboard, Users, FileText, Settings, Award, GraduationCap, ClipboardList } from "lucide-react";
+import type { ComponentType } from "react";
 
-export function AppSidebar() {
+// Helper to match icon strings to Lucide icon components
+const iconMap: Record<string, ComponentType<{ className?: string }>> = {
+  "Dashboard": LayoutDashboard,
+  "Registration": GraduationCap,
+  "Logbook": ClipboardList,
+  "Progress": FileText,
+  "Certificate": Award,
+  "Profile": Settings,
+  "Assigned Interns": Users,
+  "Logbook Review": ClipboardList,
+  "Evaluation": FileText,
+  "Applicants": Users,
+  "Interns": Users,
+  "Mentors": Users,
+  "Programs": GraduationCap,
+  "Monitoring": FileText,
+  "Reports": ClipboardList,
+  "Settings": Settings
+};
+
+export async function AppSidebar() {
+  const session = await auth();
+  const userRole = session?.user?.role || "INTERN";
+
+  // Filter sections based on user role
+  const currentSection = roleNavigation.find((section) => section.role === userRole);
+  const menuItems = currentSection ? currentSection.items : [];
+
   return (
-    <aside className="fixed inset-y-0 left-0 hidden w-72 border-r bg-background lg:block">
-      <div className="flex h-16 items-center border-b px-6">
-        <Link className="text-sm font-semibold" href="/">
-          LEXA IMS
+    <aside className="fixed inset-y-0 left-0 hidden w-72 flex-col border-r border-slate-800 bg-[#0f172a] text-slate-200 lg:flex">
+      {/* Logo Header */}
+      <div className="flex h-16 items-center border-b border-slate-800 px-6">
+        <Link className="flex items-center gap-2" href="/">
+          <span className="h-6 w-6 rounded bg-blue-600 flex items-center justify-center font-bold text-white text-xs">A</span>
+          <span className="text-lg font-bold tracking-wider bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+            LEXA
+          </span>
         </Link>
       </div>
-      <nav className="space-y-6 px-4 py-5">
-        {roleNavigation.map((section) => (
-          <div key={section.role} className="space-y-2">
-            <p className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {section.label}
-            </p>
-            <div className="space-y-1">
-              {section.items.map((item) => (
-                <Link
-                  className="block rounded-md px-2 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  href={item.href}
-                  key={item.href}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-        ))}
+
+      {/* Navigation */}
+      <nav className="flex-1 space-y-1.5 px-4 py-6">
+        <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+          {currentSection?.label} Workspace
+        </p>
+        <div className="space-y-1">
+          {menuItems.map((item) => {
+            const Icon = iconMap[item.label] || ClipboardList;
+            return (
+              <Link
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-slate-800/60 hover:text-white transition duration-200"
+                href={item.href}
+                key={item.href}
+              >
+                <Icon className="h-4.5 w-4.5" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
       </nav>
+
+      {/* Footer / User Profile Info in Sidebar */}
+      <div className="border-t border-slate-800 p-4 bg-slate-950/40">
+        <div className="flex items-center gap-3 px-2 py-1">
+          <div className="h-9 w-9 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center font-semibold text-blue-400 text-sm">
+            {session?.user?.name?.[0] || "U"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate text-white">
+              {session?.user?.name || "User"}
+            </p>
+            <p className="text-xs text-slate-500 truncate uppercase tracking-wider">
+              {userRole}
+            </p>
+          </div>
+        </div>
+      </div>
     </aside>
   );
 }

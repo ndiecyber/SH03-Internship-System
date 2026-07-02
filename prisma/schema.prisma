@@ -21,10 +21,20 @@ model User {
   emailVerified DateTime?
   image         String?
   role          UserRole  @default(INTERN)
+  password      String?   // For email/password login
   accounts      Account[]
   sessions      Session[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  // Custom Relations
+  applications     Application[]
+  logbooks         Logbook[]
+  mentorRelations  MentorIntern[] @relation("MentorRelation")
+  internRelation   MentorIntern?  @relation("InternRelation")
+  certificate      Certificate?
+  internEvaluation Evaluation?    @relation("InternEvaluation")
+  mentorEvaluations Evaluation[]   @relation("MentorEvaluation")
 }
 
 model Account {
@@ -59,4 +69,80 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model InternshipProgram {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  status      String   @default("published") // draft, published, closed
+  period      String?  // e.g. "July - Dec 2026"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  applications Application[]
+}
+
+model Application {
+  id        String   @id @default(cuid())
+  userId    String
+  programId String
+  status    String   @default("pending") // pending, approved, rejected
+  cvUrl     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program InternshipProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+}
+
+model Logbook {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @default(now())
+  activity  String   @db.Text
+  progress  Int      @default(0) // 0-100% progress indicator
+  status    String   @default("pending") // pending, approved, rejected
+  feedback  String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MentorIntern {
+  id       String @id @default(cuid())
+  mentorId String
+  internId String @unique
+
+  mentor User @relation("MentorRelation", fields: [mentorId], references: [id], onDelete: Cascade)
+  intern User @relation("InternRelation", fields: [internId], references: [id], onDelete: Cascade)
+}
+
+model Evaluation {
+  id                 String   @id @default(cuid())
+  internId           String   @unique
+  mentorId           String
+  technicalScore     Float    @default(0)
+  attitudeScore      Float    @default(0)
+  communicationScore Float    @default(0)
+  attendanceScore    Float    @default(0)
+  finalScore         Float    @default(0)
+  notes              String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  intern User @relation("InternEvaluation", fields: [internId], references: [id], onDelete: Cascade)
+  mentor User @relation("MentorEvaluation", fields: [mentorId], references: [id], onDelete: Cascade)
+}
+
+model Certificate {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  certNumber String   @unique
+  issuedAt   DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
