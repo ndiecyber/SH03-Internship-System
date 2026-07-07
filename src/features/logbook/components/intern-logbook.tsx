@@ -20,9 +20,11 @@ type InternLogbookProps = {
 
 export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>) {
   const [logbooks, setLogbooks] = useState<LogbookEntry[]>(initialLogbooks);
+  const today = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
   const [isAdding, setIsAdding] = useState(false);
   const [activity, setActivity] = useState("");
   const [progress, setProgress] = useState(50);
+  const [logDate, setLogDate] = useState(today);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -37,14 +39,14 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
     setError(null);
 
     try {
-      const res = await createLogbookAction({ activity, progress });
+      const res = await createLogbookAction({ activity, progress, date: logDate });
       if (res.error) {
         setError(res.error);
       } else {
         // Optimistically append new logbook
         const newLog: LogbookEntry = {
           id: Math.random().toString(),
-          date: new Date(),
+          date: logDate ? new Date(logDate) : new Date(),
           activity,
           progress,
           status: "pending",
@@ -53,6 +55,7 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
         setLogbooks((prev) => [newLog, ...prev]);
         setActivity("");
         setProgress(50);
+        setLogDate(today);
         setIsAdding(false);
       }
     } catch (err) {
@@ -108,6 +111,20 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
               <span>{error}</span>
             </div>
           )}
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700" htmlFor="log-date">
+              Tanggal Aktivitas
+            </label>
+            <input
+              id="log-date"
+              type="date"
+              value={logDate}
+              max={today}
+              onChange={(e) => setLogDate(e.target.value)}
+              className="w-full max-w-xs rounded-lg border border-slate-200 py-2 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
+            />
+          </div>
 
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-700" htmlFor="log-activity">
