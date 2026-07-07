@@ -39,9 +39,18 @@ export default async function InternDashboardPage() {
       })
     : [];
 
-  const averageProgress = logbooks.length > 0 
-    ? Math.round(logbooks.reduce((acc, curr) => acc + curr.progress, 0) / logbooks.length)
-    : 0;
+  const averageProgress =
+    logbooks.length > 0
+      ? Math.round(logbooks.reduce((acc, curr) => acc + curr.progress, 0) / logbooks.length)
+      : 0;
+
+  // Fetch assigned mentor
+  const mentorAssignment = userId
+    ? await prisma.mentorIntern.findUnique({
+        where: { internId: userId },
+        include: { mentor: { select: { id: true, name: true, email: true } } }
+      })
+    : null;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -142,7 +151,7 @@ export default async function InternDashboardPage() {
                     </p>
                     <p className="text-sm text-slate-700 font-medium line-clamp-1">{log.activity}</p>
                   </div>
-                  
+
                   <span
                     className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider self-start sm:self-center ${
                       log.status === "approved"
@@ -152,7 +161,11 @@ export default async function InternDashboardPage() {
                         : "bg-amber-50 text-amber-600 border border-amber-100"
                     }`}
                   >
-                    {log.status === "approved" ? "Disetujui" : log.status === "rejected" ? "Ditolak" : "Pending"}
+                    {log.status === "approved"
+                      ? "Disetujui"
+                      : log.status === "rejected"
+                      ? "Ditolak"
+                      : "Pending"}
                   </span>
                 </div>
               ))
@@ -160,20 +173,60 @@ export default async function InternDashboardPage() {
           </div>
         </div>
 
-        {/* Info card */}
-        <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-6 space-y-4 flex flex-col justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800 border-b pb-4 border-slate-50">Petunjuk Logbook</h2>
-            <p className="text-sm text-slate-600 leading-relaxed mt-3">
-              Laporkan aktivitas magang Anda setiap hari kerja. Pastikan deskripsi pekerjaan ditulis dengan jelas dan terukur agar memudahkan pembimbing menilai perkembangan Anda.
-            </p>
+        {/* Right sidebar: Mentor card + Info card */}
+        <div className="flex flex-col gap-6">
+          {/* Mentor Card */}
+          {mentorAssignment ? (
+            <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-6 space-y-4">
+              <h2 className="text-base font-bold text-slate-800 border-b pb-3 border-slate-50">
+                Pembimbing Anda
+              </h2>
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center text-white text-xl font-extrabold shrink-0">
+                  {mentorAssignment.mentor.name?.[0]?.toUpperCase() ??
+                    mentorAssignment.mentor.email[0].toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-slate-800 truncate">
+                    {mentorAssignment.mentor.name ?? "—"}
+                  </p>
+                  <p className="text-xs text-slate-500 truncate">{mentorAssignment.mentor.email}</p>
+                  <span className="inline-block mt-1.5 bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5">
+                    Aktif
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-6 space-y-2">
+              <h2 className="text-base font-bold text-slate-800 border-b pb-3 border-slate-50">
+                Pembimbing Anda
+              </h2>
+              <p className="text-sm text-slate-500 pt-1">Belum ada mentor yang ditugaskan.</p>
+              <p className="text-xs text-slate-400">
+                Admin akan menugaskan pembimbing untuk Anda.
+              </p>
+            </div>
+          )}
+
+          {/* Petunjuk Logbook */}
+          <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-6 space-y-4 flex flex-col justify-between flex-1">
+            <div>
+              <h2 className="text-base font-bold text-slate-800 border-b pb-3 border-slate-50">
+                Petunjuk Logbook
+              </h2>
+              <p className="text-sm text-slate-600 leading-relaxed mt-3">
+                Laporkan aktivitas magang Anda setiap hari kerja. Pastikan deskripsi pekerjaan ditulis
+                dengan jelas dan terukur agar memudahkan pembimbing menilai perkembangan Anda.
+              </p>
+            </div>
+            <Link
+              href="/intern/logbook"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-center text-xs py-3 rounded-lg block"
+            >
+              Tulis Laporan Sekarang
+            </Link>
           </div>
-          <Link
-            href="/intern/logbook"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-center text-xs py-3 rounded-lg block"
-          >
-            Tulis Laporan Sekarang
-          </Link>
         </div>
       </div>
     </div>

@@ -17,6 +17,7 @@ export async function getInternLogbooks() {
 export async function createLogbookAction(formData: {
   activity: string;
   progress: number;
+  date?: string; // ISO date string "YYYY-MM-DD"
 }) {
   try {
     const session = await auth();
@@ -34,6 +35,7 @@ export async function createLogbookAction(formData: {
         userId: session.user.id,
         activity: formData.activity,
         progress: formData.progress,
+        date: formData.date ? new Date(formData.date) : new Date(),
         status: "pending"
       }
     });
