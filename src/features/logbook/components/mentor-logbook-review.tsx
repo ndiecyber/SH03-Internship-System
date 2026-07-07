@@ -31,16 +31,16 @@ export function MentorLogbookReview({ initialLogbooks }: Readonly<MentorLogbookR
   const [filterStatus, setFilterStatus] = useState("pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [feedbackNotes, setFeedbackNotes] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
 
   const handleReview = async (id: string, status: "approved" | "rejected") => {
-    setIsSubmitting(true);
+    setSubmittingId(id);
     const feedback = feedbackNotes[id] || "";
 
     try {
       const res = await reviewLogbookAction(id, status, feedback);
       if (res.error) {
-        alert(res.error);
+        console.error(res.error);
       } else {
         setLogbooks((prev) =>
           prev.map((log) => (log.id === id ? { ...log, status, feedback } : log))
@@ -48,9 +48,8 @@ export function MentorLogbookReview({ initialLogbooks }: Readonly<MentorLogbookR
       }
     } catch (err) {
       console.error(err);
-      alert("Gagal memproses logbook.");
     } finally {
-      setIsSubmitting(false);
+      setSubmittingId(null);
     }
   };
 
@@ -189,15 +188,15 @@ export function MentorLogbookReview({ initialLogbooks }: Readonly<MentorLogbookR
                     <div className="flex gap-2 w-full md:w-auto shrink-0 justify-end">
                       <Button
                         onClick={() => handleReview(log.id, "approved")}
-                        disabled={isSubmitting}
+                        disabled={submittingId === log.id}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center gap-1 py-4 px-3"
                       >
                         <Check className="h-3.5 w-3.5" />
-                        <span>Setujui</span>
+                        <span>{submittingId === log.id ? "Memproses..." : "Setujui"}</span>
                       </Button>
                       <Button
                         onClick={() => handleReview(log.id, "rejected")}
-                        disabled={isSubmitting}
+                        disabled={submittingId === log.id}
                         variant="outline"
                         className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-semibold text-xs flex items-center gap-1 py-4 px-3"
                       >

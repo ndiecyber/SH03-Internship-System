@@ -1,8 +1,13 @@
 import { createPageMetadata } from "@/utils/create-page-metadata";
-import { DashboardPlaceholder } from "@/components/shared/dashboard-placeholder";
+import { ProfileForm } from "@/features/profile/components/profile-form";
+import { getProfileData } from "@/features/profile/services/profile.actions";
+import { redirect } from "next/navigation";
 
 export const metadata = createPageMetadata("Mentor Profile");
 
-export default function MentorProfilePage() {
-  return <DashboardPlaceholder title="Profile" />;
+export default async function MentorProfilePage() {
+  const user = await getProfileData();
+  if (!user) redirect("/login");
+
+  return <ProfileForm user={user} />;
 }

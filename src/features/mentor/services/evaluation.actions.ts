@@ -4,6 +4,34 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
+export async function getAssignedInternsWithDetail() {
+  const session = await auth();
+  if (!session?.user?.id) return [];
+
+  const assignments = await prisma.mentorIntern.findMany({
+    where: { mentorId: session.user.id },
+    include: {
+      intern: {
+        include: {
+          internEvaluation: true,
+          certificate: true,
+          applications: {
+            where: { status: "approved" },
+            include: { program: true },
+            take: 1
+          },
+          logbooks: {
+            orderBy: { date: "desc" },
+            take: 5
+          }
+        }
+      }
+    }
+  });
+
+  return assignments.map((a) => a.intern);
+}
+
 export async function getAssignedInterns() {
   const session = await auth();
   if (!session?.user?.id) return [];
