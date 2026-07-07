@@ -30,6 +30,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
+        // Check if user is approved (for INTERN and MENTOR roles)
+        if (user.approvalStatus === "PENDING") {
+          throw new Error("Akun Anda masih menunggu persetujuan admin.");
+        }
+
+        if (user.approvalStatus === "REJECTED") {
+          throw new Error("Akun Anda telah ditolak. Hubungi admin untuk informasi lebih lanjut.");
+        }
+
         const passwordsMatch = verifyPassword(password, user.password);
         if (passwordsMatch) {
           return {

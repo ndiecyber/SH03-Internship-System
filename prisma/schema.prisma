@@ -14,18 +14,29 @@ enum UserRole {
   INTERN
 }
 
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  role          UserRole  @default(INTERN)
-  password      String?   // For email/password login
-  accounts      Account[]
-  sessions      Session[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id               String           @id @default(cuid())
+  name             String?
+  email            String           @unique
+  emailVerified    DateTime?
+  image            String?
+  role             UserRole         @default(INTERN)
+  password         String?          // For email/password login
+  approvalStatus   ApprovalStatus   @default(APPROVED) // APPROVED for ADMIN, PENDING for INTERN/MENTOR
+  approvalReason   String?          @db.Text // Reason for rejection if applicable
+  rejectedAt       DateTime?        // When the registration was rejected
+  approvedAt       DateTime?        // When the registration was approved
+  approvedBy       String?          // Admin ID who approved
+  accounts         Account[]
+  sessions         Session[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   // Custom Relations
   applications     Application[]
@@ -36,6 +47,7 @@ model User {
   internEvaluation Evaluation?    @relation("InternEvaluation")
   mentorEvaluations Evaluation[]   @relation("MentorEvaluation")
 }
+
 
 model Account {
   id                String  @id @default(cuid())

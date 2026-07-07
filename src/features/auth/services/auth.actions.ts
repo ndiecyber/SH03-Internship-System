@@ -23,16 +23,21 @@ export async function registerAction(formData: Record<string, string>) {
 
     const hashedPassword = hashPassword(password);
 
+    // Set approval status: PENDING for INTERN/MENTOR, APPROVED for ADMIN
+    const approvalStatus = (role === "INTERN" || role === "MENTOR") ? "PENDING" : "APPROVED";
+
     await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
-        role: role || "INTERN"
+        role: role || "INTERN",
+        approvalStatus,
+        approvedAt: approvalStatus === "APPROVED" ? new Date() : undefined
       }
     });
 
-    return { success: true };
+    return { success: true, message: approvalStatus === "PENDING" ? "Pendaftaran berhasil! Menunggu persetujuan admin." : "Pendaftaran berhasil!" };
   } catch (error: unknown) {
     console.error("Error during registration:", error);
     return { error: "Terjadi kesalahan sistem saat mendaftar." };

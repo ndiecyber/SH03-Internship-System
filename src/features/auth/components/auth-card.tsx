@@ -72,7 +72,8 @@ export function AuthCard({ mode }: Readonly<AuthCardProps>) {
         if (response?.error) {
           setError(response.error);
         } else {
-          setSuccess("Pendaftaran berhasil! Silakan login untuk melanjutkan.");
+          const message = response?.message || "Pendaftaran berhasil! Silakan login untuk melanjutkan.";
+          setSuccess(message);
           setTimeout(() => {
             router.push("/login");
           }, 2000);
