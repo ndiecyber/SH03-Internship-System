@@ -7,6 +7,14 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertCircle } from "lucide-react";
 import { UserRole } from "@/types/roles";
 
+interface Application {
+  id: string;
+  status: string;
+  cvUrl: string | null;
+  createdAt: Date;
+  program: { title: string };
+}
+
 interface User {
   id: string;
   name: string | null;
@@ -15,6 +23,7 @@ interface User {
   approvalStatus: string;
   createdAt: Date;
   approvedAt: Date | null;
+  applications?: Application[];
 }
 
 interface UserListContainerProps {
