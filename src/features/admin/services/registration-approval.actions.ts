@@ -91,3 +91,37 @@ export async function rejectRegistration(userId: string, reason?: string) {
     return { error: "Gagal menolak registrasi" };
   }
 }
+
+export async function getRegistrationHistory() {
+  try {
+    const session = await auth();
+
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return { error: "Unauthorized" };
+    }
+
+    const history = await prisma.user.findMany({
+      where: {
+        approvalStatus: { in: ["APPROVED", "REJECTED"] },
+        role: { in: ["INTERN", "MENTOR"] }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        approvalStatus: true,
+        approvedAt: true,
+        rejectedAt: true,
+        approvalReason: true,
+        createdAt: true
+      },
+      orderBy: { updatedAt: "desc" }
+    });
+
+    return { data: history };
+  } catch (error: unknown) {
+    console.error("Error fetching registration history:", error);
+    return { error: "Gagal mengambil riwayat registrasi" };
+  }
+}
