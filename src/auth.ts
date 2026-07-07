@@ -9,7 +9,8 @@ import { verifyPassword } from "@/utils/hash";
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   adapter: PrismaAdapter(prisma) as any,
-  session: { strategy: "jwt" },
+  trustHost: true,
+  useSecureCookies: process.env.NODE_ENV === "production",
   ...authConfig,
   providers: [
     Credentials({
@@ -55,3 +56,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     })
   ]
 });
+

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
+import { AppSessionProvider } from "@/components/providers/session-provider";
 
 export const metadata: Metadata = {
   title: {
@@ -13,7 +14,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AppSessionProvider>
+          {children}
+        </AppSessionProvider>
+      </body>
     </html>
   );
 }

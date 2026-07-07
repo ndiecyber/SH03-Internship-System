@@ -6,10 +6,23 @@ export const authConfig = {
   pages: {
     signIn: "/login"
   },
+  session: {
+    strategy: "jwt",
+    maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
+    updateAge: 24 * 60 * 60 // Update token every 24 hours
+  },
+  jwt: {
+    maxAge: 7 * 24 * 60 * 60 // 7 days in seconds
+  },
   callbacks: {
-    jwt({ token, user }) {
+    jwt({ token, user, trigger, session }) {
       if (user) {
         token.role = user.role;
+      }
+
+      // Handle session update to refresh token
+      if (trigger === "update" && session) {
+        token.role = session.role;
       }
 
       return token;
@@ -21,6 +34,24 @@ export const authConfig = {
       }
 
       return session;
+    },
+    // Authorized callback untuk validate session
+    authorized({ request, auth }) {
+      const isLoggedIn = !!auth?.user;
+      const pathname = request.nextUrl.pathname;
+
+      // Allow public pages
+      if (pathname === "/login" || pathname === "/register" || pathname === "/internship-information") {
+        return true;
+      }
+
+      // Require login for protected routes
+      if (pathname.startsWith("/admin") || pathname.startsWith("/mentor") || pathname.startsWith("/intern")) {
+        return isLoggedIn;
+      }
+
+      // Allow home page access
+      return true;
     }
   }
 } satisfies NextAuthConfig;
