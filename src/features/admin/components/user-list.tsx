@@ -4,7 +4,15 @@ import { useState } from "react";
 import { formatDate } from "@/utils/format-date";
 import { Button } from "@/components/ui/button";
 import { deleteUser } from "../services/user-management.actions";
-import { Trash2, Loader2, CheckCircle, Clock, XCircle } from "lucide-react";
+import { Trash2, Loader2, CheckCircle, Clock, XCircle, ExternalLink } from "lucide-react";
+
+interface Application {
+  id: string;
+  status: string;
+  cvUrl: string | null;
+  createdAt: Date;
+  program: { title: string };
+}
 
 interface User {
   id: string;
@@ -14,12 +22,51 @@ interface User {
   approvalStatus: string;
   createdAt: Date;
   approvedAt: Date | null;
+  applications?: Application[];
 }
 
 interface UserListProps {
   users: User[];
   roleLabel: string;
   onRefresh?: () => void;
+}
+
+function getApplicationBadge(applications?: Application[]) {
+  const app = applications?.[0];
+
+  if (!app) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
+        Belum mendaftar program
+      </span>
+    );
+  }
+
+  switch (app.status) {
+    case "approved":
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+          <CheckCircle className="h-3.5 w-3.5" />
+          Peserta Aktif — {app.program.title}
+        </span>
+      );
+    case "rejected":
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+          <XCircle className="h-3.5 w-3.5" />
+          Berkas Ditolak — {app.program.title}
+        </span>
+      );
+    case "pending":
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+          <Clock className="h-3.5 w-3.5" />
+          Menunggu Review Berkas — {app.program.title}
+        </span>
+      );
+    default:
+      return null;
+  }
 }
 
 export function UserList({ users, roleLabel, onRefresh }: Readonly<UserListProps>) {
@@ -33,37 +80,9 @@ export function UserList({ users, roleLabel, onRefresh }: Readonly<UserListProps
     setIsLoading(userId);
     const result = await deleteUser(userId);
     setIsLoading(null);
-    
+
     if (result.success) {
       onRefresh?.();
-    }
-  };
-
-  const getApprovalBadge = (status: string) => {
-    switch (status) {
-      case "APPROVED":
-        return (
-          <div className="flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1">
-            <CheckCircle className="h-4 w-4 text-emerald-700" />
-            <span className="text-xs font-medium text-emerald-700">Approved</span>
-          </div>
-        );
-      case "PENDING":
-        return (
-          <div className="flex items-center gap-2 rounded-full bg-yellow-100 px-3 py-1">
-            <Clock className="h-4 w-4 text-yellow-700" />
-            <span className="text-xs font-medium text-yellow-700">Pending</span>
-          </div>
-        );
-      case "REJECTED":
-        return (
-          <div className="flex items-center gap-2 rounded-full bg-red-100 px-3 py-1">
-            <XCircle className="h-4 w-4 text-red-700" />
-            <span className="text-xs font-medium text-red-700">Rejected</span>
-          </div>
-        );
-      default:
-        return null;
     }
   };
 
@@ -83,11 +102,42 @@ export function UserList({ users, roleLabel, onRefresh }: Readonly<UserListProps
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-slate-900">{user.name || "Nama tidak tersedia"}</h3>
               <p className="text-sm text-slate-600 truncate">{user.email}</p>
-              <div className="mt-2 flex items-center gap-3 flex-wrap">
-                {getApprovalBadge(user.approvalStatus)}
-                <span className="text-xs text-slate-500">
-                  Daftar: {formatDate(new Date(user.createdAt))}
-                </span>
+
+              <div className="mt-2 space-y-1.5">
+                {/* Application status - PROMINENT */}
+                {getApplicationBadge(user.applications)}
+
+                {/* CV link if available and pending review */}
+                {user.applications?.[0]?.cvUrl && user.applications[0].status === "pending" && (
+                  <a
+                    href={user.applications[0].cvUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    Lihat CV di Google Drive
+                  </a>
+                )}
+
+                {/* Account status + join date - secondary info */}
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-xs text-slate-400">
+                    Akun:{" "}
+                    <span
+                      className={
+                        user.approvalStatus === "APPROVED"
+                          ? "text-emerald-600 font-medium"
+                          : "text-slate-500"
+                      }
+                    >
+                      {user.approvalStatus}
+                    </span>
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    Daftar: {formatDate(new Date(user.createdAt))}
+                  </span>
+                </div>
               </div>
             </div>
             <Button

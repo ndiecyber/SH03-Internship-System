@@ -27,7 +27,20 @@ export async function getUsersByRole(role: UserRole) {
         role: true,
         approvalStatus: true,
         createdAt: true,
-        approvedAt: true
+        approvedAt: true,
+        applications: {
+          select: {
+            id: true,
+            status: true,
+            cvUrl: true,
+            createdAt: true,
+            program: {
+              select: { title: true }
+            }
+          },
+          orderBy: { createdAt: "desc" as const },
+          take: 1
+        }
       },
       orderBy: { createdAt: "desc" }
     });
