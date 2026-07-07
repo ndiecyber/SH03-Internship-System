@@ -14,16 +14,27 @@ export default auth((request) => {
     return NextResponse.next();
   }
 
-  // If user not authenticated, redirect to login
+  const acceptHeader = request.headers.get("accept") || "";
+  const isHtmlRequest = acceptHeader.includes("text/html") || request.nextUrl.pathname === "/";
+
+  // If user not authenticated, for navigations redirect to login, for API/fetch return 401
   if (!request.auth?.user) {
-    const loginUrl = new URL("/login", request.nextUrl.origin);
-    loginUrl.searchParams.set("callbackUrl", request.nextUrl.href);
-    return NextResponse.redirect(loginUrl);
+    if (isHtmlRequest) {
+      const loginUrl = new URL("/login", request.nextUrl.origin);
+      loginUrl.searchParams.set("callbackUrl", request.nextUrl.href);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    return new NextResponse(null, { status: 401 });
   }
 
-  // If user role doesn't match required role, redirect to home
+  // If user role doesn't match required role, for navigations redirect to home, for API/fetch return 403
   if (userRole !== requiredRole) {
-    return NextResponse.redirect(new URL("/", request.nextUrl.origin));
+    if (isHtmlRequest) {
+      return NextResponse.redirect(new URL("/", request.nextUrl.origin));
+    }
+
+    return new NextResponse(null, { status: 403 });
   }
 
   // Allow access
