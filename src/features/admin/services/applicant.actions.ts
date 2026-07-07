@@ -1,9 +1,15 @@
 "use server";
 
+import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 export async function getAllApplications() {
+  const session = await auth();
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return [];
+  }
+
   return await prisma.application.findMany({
     include: {
       user: true,
@@ -19,6 +25,11 @@ export async function reviewApplicationAction(
   reviewNotes?: string
 ) {
   try {
+    const session = await auth();
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return { error: "Unauthorized" };
+    }
+
     const app = await prisma.application.update({
       where: { id: applicationId },
       data: {

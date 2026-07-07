@@ -73,6 +73,18 @@ export async function reviewLogbookAction(
   feedback?: string
 ) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) return { error: "Unauthorized" };
+
+    // Verify the logbook belongs to one of this mentor's interns
+    const assignment = await prisma.mentorIntern.findFirst({
+      where: {
+        mentorId: session.user.id,
+        intern: { logbooks: { some: { id: logbookId } } }
+      }
+    });
+    if (!assignment) return { error: "Forbidden" };
+
     await prisma.logbook.update({
       where: { id: logbookId },
       data: {

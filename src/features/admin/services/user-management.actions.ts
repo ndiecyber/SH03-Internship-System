@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
+import { revalidatePath } from "next/cache";
 import { UserRole } from "@/types/roles";
 
 export async function getUsersByRole(role: UserRole) {
@@ -55,5 +56,89 @@ export async function deleteUser(userId: string) {
   } catch (error: unknown) {
     console.error("Error deleting user:", error);
     return { error: "Gagal menghapus pengguna" };
+  }
+}
+
+export async function getMentorInternAssignments() {
+  try {
+    const session = await auth();
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return { error: "Unauthorized" };
+    }
+
+    const interns = await prisma.user.findMany({
+      where: {
+        role: "INTERN",
+        approvalStatus: "APPROVED"
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        internRelation: {
+          include: {
+            mentor: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { name: "asc" }
+    });
+
+    return { data: interns };
+  } catch (error: unknown) {
+    console.error("Error fetching mentor-intern assignments:", error);
+    return { error: "Gagal mengambil data penugasan mentor" };
+  }
+}
+
+export async function assignMentorToIntern(internId: string, mentorId: string) {
+  try {
+    const session = await auth();
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return { error: "Unauthorized" };
+    }
+
+    await prisma.mentorIntern.upsert({
+      where: { internId },
+      update: { mentorId },
+      create: { internId, mentorId }
+    });
+
+    revalidatePath("/admin/interns");
+    revalidatePath("/mentor/assigned-interns");
+    revalidatePath("/mentor/evaluation");
+    revalidatePath("/mentor/logbook-review");
+    return { success: true };
+  } catch (error: unknown) {
+    console.error("Error assigning mentor to intern:", error);
+    return { error: "Gagal menugaskan mentor" };
+  }
+}
+
+export async function unassignMentorFromIntern(internId: string) {
+  try {
+    const session = await auth();
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return { error: "Unauthorized" };
+    }
+
+    await prisma.mentorIntern.delete({
+      where: { internId }
+    });
+
+    revalidatePath("/admin/interns");
+    revalidatePath("/mentor/assigned-interns");
+    revalidatePath("/mentor/evaluation");
+    revalidatePath("/mentor/logbook-review");
+    return { success: true };
+  } catch (error: unknown) {
+    console.error("Error unassigning mentor from intern:", error);
+    return { error: "Gagal menghapus penugasan mentor" };
   }
 }

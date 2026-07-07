@@ -1,3 +1,8 @@
+"use client";
+
+import { useState } from "react";
+import { Search } from "lucide-react";
+
 type MonitoringLogbook = {
   id: string;
   activity: string;
@@ -21,6 +26,13 @@ const statusStyles: Record<string, string> = {
   rejected: "bg-rose-100 text-rose-700"
 };
 
+const statusLabels: Record<string, string> = {
+  all: "Semua",
+  pending: "Pending",
+  approved: "Disetujui",
+  rejected: "Ditolak"
+};
+
 function formatDate(value: Date) {
   return new Date(value).toLocaleString("id-ID", {
     dateStyle: "medium",
@@ -29,12 +41,36 @@ function formatDate(value: Date) {
 }
 
 export function AdminMonitoring({ logbooks }: Readonly<AdminMonitoringProps>) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterIntern, setFilterIntern] = useState("all");
+
   const pendingCount = logbooks.filter((log) => log.status === "pending").length;
   const approvedCount = logbooks.filter((log) => log.status === "approved").length;
   const rejectedCount = logbooks.filter((log) => log.status === "rejected").length;
 
+  // Unique intern names for filter dropdown
+  const uniqueInterns = Array.from(
+    new Map(
+      logbooks.map((log) => [log.user.email, log.user.name ?? log.user.email])
+    ).entries()
+  );
+
+  const filtered = logbooks.filter((log) => {
+    const matchesStatus = filterStatus === "all" || log.status === filterStatus;
+    const matchesIntern = filterIntern === "all" || log.user.email === filterIntern;
+    const q = searchQuery.toLowerCase();
+    const matchesSearch =
+      !q ||
+      log.user.name?.toLowerCase().includes(q) ||
+      log.user.email.toLowerCase().includes(q) ||
+      log.activity.toLowerCase().includes(q);
+    return matchesStatus && matchesIntern && matchesSearch;
+  });
+
   return (
     <div className="space-y-6">
+      {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm font-medium text-slate-500">Total Logbook</p>
@@ -50,6 +86,55 @@ export function AdminMonitoring({ logbooks }: Readonly<AdminMonitoringProps>) {
         </div>
       </div>
 
+      {/* Filters */}
+      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm space-y-3">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          {/* Search */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari nama, email, atau aktivitas..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 py-2 pl-10 pr-4 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
+            />
+          </div>
+
+          {/* Intern dropdown */}
+          <select
+            value={filterIntern}
+            onChange={(e) => setFilterIntern(e.target.value)}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
+          >
+            <option value="all">Semua Intern</option>
+            {uniqueInterns.map(([email, name]) => (
+              <option key={email} value={email}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Status filter tabs */}
+        <div className="flex gap-2 overflow-x-auto">
+          {(["all", "pending", "approved", "rejected"] as const).map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilterStatus(status)}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition whitespace-nowrap ${
+                filterStatus === status
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              {statusLabels[status]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
@@ -58,11 +143,15 @@ export function AdminMonitoring({ logbooks }: Readonly<AdminMonitoringProps>) {
               Pantau aktivitas harian dari akun role magang yang sudah mengirim logbook.
             </p>
           </div>
+          <p className="text-sm text-slate-500">
+            Menampilkan <span className="font-semibold text-slate-700">{filtered.length}</span> dari{" "}
+            <span className="font-semibold text-slate-700">{logbooks.length}</span> logbook
+          </p>
         </div>
 
-        {logbooks.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
-            Belum ada logbook dari akun magang yang tersedia.
+            Belum ada logbook yang sesuai dengan filter yang dipilih.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -78,7 +167,7 @@ export function AdminMonitoring({ logbooks }: Readonly<AdminMonitoringProps>) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {logbooks.map((logbook) => (
+                {filtered.map((logbook) => (
                   <tr key={logbook.id} className="align-top">
                     <td className="px-3 py-3">
                       <div className="font-medium text-slate-900">{logbook.user.name ?? "Tanpa nama"}</div>
@@ -97,7 +186,11 @@ export function AdminMonitoring({ logbooks }: Readonly<AdminMonitoringProps>) {
                       <div className="line-clamp-3">{logbook.activity}</div>
                     </td>
                     <td className="max-w-[220px] px-3 py-3 text-slate-600">
-                      {logbook.feedback ? <div className="line-clamp-3">{logbook.feedback}</div> : <span className="text-slate-400">—</span>}
+                      {logbook.feedback ? (
+                        <div className="line-clamp-3">{logbook.feedback}</div>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
