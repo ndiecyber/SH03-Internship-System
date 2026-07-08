@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { sendApprovalEmail, sendRejectionEmail } from "@/services/email";
 
 export async function getAllApplications() {
   const session = await auth();
@@ -62,6 +63,12 @@ export async function reviewApplicationAction(
           });
         }
       }
+      
+      // Send approval email
+      sendApprovalEmail(app.user.email, app.user.name ?? "Peserta").catch(err => console.error("Failed to send approval email:", err));
+    } else if (status === "rejected") {
+      // Send rejection email
+      sendRejectionEmail(app.user.email, app.user.name ?? "Peserta", reviewNotes).catch(err => console.error("Failed to send rejection email:", err));
     }
 
     revalidatePath("/admin/applicants");

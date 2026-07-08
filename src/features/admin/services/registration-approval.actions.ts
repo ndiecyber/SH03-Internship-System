@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
+import { sendApprovalEmail, sendRejectionEmail } from "@/services/email";
 
 export async function getPendingRegistrations() {
   try {
@@ -53,6 +54,11 @@ export async function approveRegistration(userId: string) {
       }
     });
 
+    // Send approval notification email (non-blocking)
+    sendApprovalEmail(updated.email, updated.name ?? "Peserta").catch(err => {
+      console.error("Failed to send approval email:", err);
+    });
+
     // Revalidate the reports page to refresh data
     revalidatePath("/admin/reports");
 
@@ -80,6 +86,11 @@ export async function rejectRegistration(userId: string, reason?: string) {
         approvalReason: reason,
         approvedBy: session.user.id
       }
+    });
+
+    // Send rejection notification email (non-blocking)
+    sendRejectionEmail(updated.email, updated.name ?? "Peserta", reason).catch(err => {
+      console.error("Failed to send rejection email:", err);
     });
 
     // Revalidate the reports page to refresh data
