@@ -19,3 +19,25 @@ export const changePasswordSchema = z
     message: "Konfirmasi password tidak cocok",
     path: ["confirmPassword"]
   });
+
+const ALLOWED_EMAIL_DOMAINS = ["gmail.com"];
+const ALLOWED_EMAIL_SUFFIXES = [".ac.id"];
+
+function isAllowedEmail(email: string): boolean {
+  const domain = email.split("@")[1] ?? "";
+  return (
+    ALLOWED_EMAIL_DOMAINS.includes(domain) ||
+    ALLOWED_EMAIL_SUFFIXES.some((suffix) => domain.endsWith(suffix))
+  );
+}
+
+export const changeEmailSchema = z
+  .object({
+    newEmail: z
+      .string()
+      .email("Format email tidak valid")
+      .refine(isAllowedEmail, {
+        message: "Email harus menggunakan @gmail.com atau domain universitas (contoh: @student.ui.ac.id)"
+      }),
+    currentPassword: z.string().min(1, "Password wajib diisi untuk konfirmasi")
+  });
