@@ -60,19 +60,10 @@ export function UserListContainer({
     return () => clearInterval(interval);
   }, [role]);
 
-  // Filter counts
-  const countAll = users.length;
-  const countAktif = users.filter((u) =>
-    u.applications?.some((a) => a.status === "approved")
-  ).length;
-  const countBelumDaftar = users.filter(
-    (u) => !u.applications || u.applications.length === 0
-  ).length;
-
   const tabs = [
-    { id: "all", label: "Semua", count: countAll },
-    { id: "aktif", label: "Peserta Aktif", count: countAktif },
-    { id: "belum", label: "Belum Daftar", count: countBelumDaftar },
+    { id: "all", label: "Semua" },
+    { id: "aktif", label: "Peserta Aktif" },
+    { id: "belum", label: "Belum Daftar" },
   ];
 
   const filteredUsers = users.filter((u) => {
@@ -116,20 +107,13 @@ export function UserListContainer({
               <button
                 key={tab.id}
                 onClick={() => setFilterStatus(tab.id)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition whitespace-nowrap ${
+                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${
                   filterStatus === tab.id
                     ? "bg-blue-600 text-white shadow-sm"
                     : "text-slate-500 hover:bg-slate-50"
                 }`}
               >
                 {tab.label}
-                <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${
-                  filterStatus === tab.id
-                    ? "bg-white/20 text-white"
-                    : "bg-slate-100 text-slate-500"
-                }`}>
-                  {tab.count}
-                </span>
               </button>
             ))}
           </div>
@@ -140,7 +124,7 @@ export function UserListContainer({
         Menampilkan{" "}
         <span className="font-semibold text-slate-900">{filteredUsers.length}</span>{" "}
         dari{" "}
-        <span className="font-semibold text-slate-900">{countAll}</span>{" "}
+        <span className="font-semibold text-slate-900">{users.length}</span>{" "}
         {roleLabel}
       </p>
 
