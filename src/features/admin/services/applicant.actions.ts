@@ -49,9 +49,9 @@ export async function reviewApplicationAction(
       });
 
       if (!existingAssignment) {
-        // Find first mentor
+        // Find first approved mentor only
         const firstMentor = await prisma.user.findFirst({
-          where: { role: "MENTOR" }
+          where: { role: "MENTOR", approvalStatus: "APPROVED" }
         });
 
         if (firstMentor) {
