@@ -38,6 +38,9 @@ export async function getUsersByRole(role: UserRole) {
           orderBy: { createdAt: "desc" as const },
           take: 1
         },
+        certificate: {
+          select: { certNumber: true, issuedAt: true }
+        },
         internRelation: {
           include: {
             mentor: {
