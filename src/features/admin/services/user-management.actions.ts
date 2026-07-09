@@ -17,7 +17,7 @@ export async function getUsersByRole(role: UserRole) {
     const users = await prisma.user.findMany({
       where: {
         role,
-        NOT: { role: "ADMIN" }
+        NOT: [{ role: "ADMIN" }, { approvalStatus: "REJECTED" }]
       },
       select: {
         id: true,
