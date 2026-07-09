@@ -96,7 +96,8 @@ export async function submitEvaluationAction(formData: {
 
     // Auto generate Certificate
     const certCount = await prisma.certificate.count();
-    const certNumber = `CERT-2026-${String(certCount + 1).padStart(4, "0")}`;
+    const seq = String(certCount + 1).padStart(4, "0");
+    const certNumber = `LEXA-INT-2026-0401-${seq}`;
     await prisma.certificate.create({
       data: {
         userId: internId,
