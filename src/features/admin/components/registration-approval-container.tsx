@@ -65,7 +65,10 @@ export function RegistrationApprovalContainer({ initialData }: Readonly<Registra
         </div>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-500">
+          <span className="font-semibold text-slate-800">{pendingUsers.length}</span> registrasi menunggu persetujuan
+        </p>
         <Button
           size="sm"
           variant="outline"
