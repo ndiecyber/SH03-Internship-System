@@ -15,6 +15,12 @@ interface Application {
   program: { title: string };
 }
 
+interface Mentor {
+  id: string;
+  name: string | null;
+  email: string;
+}
+
 interface User {
   id: string;
   name: string | null;
@@ -24,15 +30,22 @@ interface User {
   createdAt: Date;
   approvedAt: Date | null;
   applications?: Application[];
+  assignedMentor?: Mentor | null;
 }
 
 interface UserListContainerProps {
   initialData: User[];
   role: UserRole;
   roleLabel: string;
+  mentors?: Mentor[];
 }
 
-export function UserListContainer({ initialData, role, roleLabel }: Readonly<UserListContainerProps>) {
+export function UserListContainer({
+  initialData,
+  role,
+  roleLabel,
+  mentors,
+}: Readonly<UserListContainerProps>) {
   const [users, setUsers] = useState<User[]>(initialData);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +58,7 @@ export function UserListContainer({ initialData, role, roleLabel }: Readonly<Use
       if (result.error) {
         setError(result.error);
       } else {
-        setUsers(result.data || []);
+        setUsers((result.data as User[]) || []);
       }
     } catch (err) {
       console.error("Refresh error:", err);
@@ -59,12 +72,9 @@ export function UserListContainer({ initialData, role, roleLabel }: Readonly<Use
   useEffect(() => {
     const interval = setInterval(() => {
       getUsersByRole(role).then((result) => {
-        if (result.data) {
-          setUsers(result.data);
-        }
+        if (result.data) setUsers(result.data as User[]);
       });
-    }, 5000); // Refresh every 5 seconds
-
+    }, 5000);
     return () => clearInterval(interval);
   }, [role]);
 
@@ -79,7 +89,9 @@ export function UserListContainer({ initialData, role, roleLabel }: Readonly<Use
 
       <div className="flex justify-between items-center">
         <p className="text-sm text-slate-600">
-          Total: <span className="font-semibold text-slate-900">{users.length}</span> {roleLabel}
+          Total:{" "}
+          <span className="font-semibold text-slate-900">{users.length}</span>{" "}
+          {roleLabel}
         </p>
         <Button
           size="sm"
@@ -93,7 +105,12 @@ export function UserListContainer({ initialData, role, roleLabel }: Readonly<Use
         </Button>
       </div>
 
-      <UserList users={users} roleLabel={roleLabel} onRefresh={handleRefresh} />
+      <UserList
+        users={users}
+        roleLabel={roleLabel}
+        mentors={mentors}
+        onRefresh={handleRefresh}
+      />
     </div>
   );
 }

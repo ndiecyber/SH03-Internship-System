@@ -17,7 +17,6 @@ export async function getUsersByRole(role: UserRole) {
     const users = await prisma.user.findMany({
       where: {
         role,
-        // Exclude admin users
         NOT: { role: "ADMIN" }
       },
       select: {
@@ -34,18 +33,29 @@ export async function getUsersByRole(role: UserRole) {
             status: true,
             cvUrl: true,
             createdAt: true,
-            program: {
-              select: { title: true }
-            }
+            program: { select: { title: true } }
           },
           orderBy: { createdAt: "desc" as const },
           take: 1
+        },
+        internRelation: {
+          include: {
+            mentor: {
+              select: { id: true, name: true, email: true }
+            }
+          }
         }
       },
       orderBy: { createdAt: "desc" }
     });
 
-    return { data: users };
+    // Flatten assignedMentor from internRelation
+    const data = users.map(({ internRelation, ...u }) => ({
+      ...u,
+      assignedMentor: internRelation?.mentor ?? null
+    }));
+
+    return { data };
   } catch (error: unknown) {
     console.error(`Error fetching ${role} users:`, error);
     return { error: `Gagal mengambil data ${role}` };

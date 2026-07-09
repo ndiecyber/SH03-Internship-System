@@ -3,8 +3,11 @@
 import { useState } from "react";
 import { formatDate } from "@/utils/format-date";
 import { Button } from "@/components/ui/button";
-import { deleteUser } from "../services/user-management.actions";
-import { Trash2, Loader2, CheckCircle, Clock, XCircle, ExternalLink } from "lucide-react";
+import { deleteUser, assignMentorToIntern, unassignMentorFromIntern } from "../services/user-management.actions";
+import {
+  Trash2, Loader2, CheckCircle, Clock, XCircle,
+  ExternalLink, UserCheck, UserX
+} from "lucide-react";
 
 interface Application {
   id: string;
@@ -12,6 +15,12 @@ interface Application {
   cvUrl: string | null;
   createdAt: Date;
   program: { title: string };
+}
+
+interface Mentor {
+  id: string;
+  name: string | null;
+  email: string;
 }
 
 interface User {
@@ -23,11 +32,14 @@ interface User {
   createdAt: Date;
   approvedAt: Date | null;
   applications?: Application[];
+  // assigned mentor (optional, only for INTERN role)
+  assignedMentor?: Mentor | null;
 }
 
 interface UserListProps {
   users: User[];
   roleLabel: string;
+  mentors?: Mentor[]; // available mentors for dropdown (INTERN role only)
   onRefresh?: () => void;
 }
 
@@ -69,21 +81,52 @@ function getApplicationBadge(applications?: Application[]) {
   }
 }
 
-export function UserList({ users, roleLabel, onRefresh }: Readonly<UserListProps>) {
-  const [isLoading, setIsLoading] = useState<string | null>(null);
+export function UserList({ users, roleLabel, mentors, onRefresh }: Readonly<UserListProps>) {
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+  // track selected mentor per intern card
+  const [selectedMentor, setSelectedMentor] = useState<Record<string, string>>({});
+  // track optimistic assigned mentor per intern
+  const [assignedMentors, setAssignedMentors] = useState<Record<string, Mentor | null>>(() => {
+    const map: Record<string, Mentor | null> = {};
+    users.forEach((u) => {
+      if (u.assignedMentor !== undefined) map[u.id] = u.assignedMentor ?? null;
+    });
+    return map;
+  });
 
   const handleDelete = async (userId: string) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus pengguna ini?")) {
-      return;
-    }
-
-    setIsLoading(userId);
+    if (!confirm("Apakah Anda yakin ingin menghapus pengguna ini?")) return;
+    setDeletingId(userId);
     const result = await deleteUser(userId);
-    setIsLoading(null);
+    setDeletingId(null);
+    if (result.success) onRefresh?.();
+  };
 
-    if (result.success) {
-      onRefresh?.();
+  const handleAssign = async (internId: string) => {
+    const mentorId = selectedMentor[internId];
+    if (!mentorId) return;
+    setAssigningId(internId);
+    const res = await assignMentorToIntern(internId, mentorId);
+    if (res.error) {
+      alert(res.error);
+    } else {
+      const mentor = mentors?.find((m) => m.id === mentorId) ?? null;
+      setAssignedMentors((prev) => ({ ...prev, [internId]: mentor }));
+      setSelectedMentor((prev) => { const n = { ...prev }; delete n[internId]; return n; });
     }
+    setAssigningId(null);
+  };
+
+  const handleUnassign = async (internId: string) => {
+    setAssigningId(internId);
+    const res = await unassignMentorFromIntern(internId);
+    if (res.error) {
+      alert(res.error);
+    } else {
+      setAssignedMentors((prev) => ({ ...prev, [internId]: null }));
+    }
+    setAssigningId(null);
   };
 
   if (users.length === 0) {
@@ -96,18 +139,30 @@ export function UserList({ users, roleLabel, onRefresh }: Readonly<UserListProps
 
   return (
     <div className="space-y-3">
-      {users.map((user) => (
-        <div key={user.id} className="rounded-lg border border-slate-200 p-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-slate-900">{user.name || "Nama tidak tersedia"}</h3>
-              <p className="text-sm text-slate-600 truncate">{user.email}</p>
+      {users.map((user) => {
+        const isDeleting = deletingId === user.id;
+        const isAssigning = assigningId === user.id;
+        const currentMentor = assignedMentors[user.id] !== undefined
+          ? assignedMentors[user.id]
+          : user.assignedMentor ?? null;
+        const chosenMentorId = selectedMentor[user.id] ?? "";
+        const showMentorControl = mentors && mentors.length > 0;
 
-              <div className="mt-2 space-y-1.5">
-                {/* Application status - PROMINENT */}
+        return (
+          <div key={user.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+
+              {/* Left — info */}
+              <div className="flex-1 min-w-0 space-y-2">
+                <div>
+                  <h3 className="font-semibold text-slate-900">{user.name || "Nama tidak tersedia"}</h3>
+                  <p className="text-sm text-slate-500 truncate">{user.email}</p>
+                </div>
+
+                {/* Application status */}
                 {getApplicationBadge(user.applications)}
 
-                {/* CV link if available and pending review */}
+                {/* CV link */}
                 {user.applications?.[0]?.cvUrl && user.applications[0].status === "pending" && (
                   <a
                     href={user.applications[0].cvUrl}
@@ -120,48 +175,106 @@ export function UserList({ users, roleLabel, onRefresh }: Readonly<UserListProps
                   </a>
                 )}
 
-                {/* Account status + join date - secondary info */}
+                {/* Account status + date */}
                 <div className="flex items-center gap-3 flex-wrap">
                   <span className="text-xs text-slate-400">
                     Akun:{" "}
-                    <span
-                      className={
-                        user.approvalStatus === "APPROVED"
-                          ? "text-emerald-600 font-medium"
-                          : "text-slate-500"
-                      }
-                    >
+                    <span className={user.approvalStatus === "APPROVED" ? "text-emerald-600 font-medium" : "text-slate-500"}>
                       {user.approvalStatus}
                     </span>
                   </span>
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-slate-400">
                     Daftar: {formatDate(new Date(user.createdAt))}
                   </span>
                 </div>
+
+                {/* ── Mentor assignment inline ── */}
+                {showMentorControl && (
+                  <div className="pt-1 border-t border-slate-100 mt-1">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      {currentMentor ? (
+                        <>
+                          <UserCheck className="h-3.5 w-3.5 text-emerald-500" />
+                          <span className="text-xs font-medium text-emerald-700">
+                            Mentor: {currentMentor.name ?? currentMentor.email}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <UserX className="h-3.5 w-3.5 text-slate-400" />
+                          <span className="text-xs text-slate-400">Belum ditugaskan mentor</span>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        value={chosenMentorId}
+                        onChange={(e) =>
+                          setSelectedMentor((prev) => ({ ...prev, [user.id]: e.target.value }))
+                        }
+                        disabled={isAssigning}
+                        className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
+                      >
+                        <option value="">-- Pilih Mentor --</option>
+                        {mentors.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name ?? m.email}
+                          </option>
+                        ))}
+                      </select>
+
+                      <Button
+                        size="sm"
+                        onClick={() => handleAssign(user.id)}
+                        disabled={!chosenMentorId || isAssigning}
+                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-7 px-3"
+                      >
+                        {isAssigning ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          currentMentor ? "Ganti Mentor" : "Assign"
+                        )}
+                      </Button>
+
+                      {currentMentor && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleUnassign(user.id)}
+                          disabled={isAssigning}
+                          className="border-rose-200 text-rose-600 hover:bg-rose-50 text-xs h-7 px-3"
+                        >
+                          {isAssigning ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            "Hapus Penugasan"
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {/* Right — delete */}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleDelete(user.id)}
+                disabled={isDeleting}
+                className="border-red-300 text-red-700 hover:bg-red-50 shrink-0 self-start"
+              >
+                {isDeleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <><Trash2 className="mr-1.5 h-4 w-4" />Hapus</>
+                )}
+              </Button>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleDelete(user.id)}
-              disabled={isLoading === user.id}
-              className="border-red-300 text-red-700 hover:bg-red-50"
-            >
-              {isLoading === user.id ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Hapus...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Hapus
-                </>
-              )}
-            </Button>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
