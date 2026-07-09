@@ -21,26 +21,34 @@ export async function getDashboardStats() {
       pendingLogbooks,
       latestLogbooks
     ] = await Promise.all([
+      // Total aplikasi (semua status) — sama dengan yang tampil di halaman Applicants
       prisma.application.count(),
 
+      // Intern aktif: role INTERN, akun APPROVED, punya aplikasi approved, belum punya sertifikat
+      // Konsisten dengan halaman Interns (filter tab "Peserta Aktif")
       prisma.user.count({
         where: {
           role: "INTERN",
+          approvalStatus: "APPROVED",
           applications: { some: { status: "approved" } },
           certificate: null
         }
       }),
 
+      // Intern selesai: role INTERN, sudah punya sertifikat
+      // Konsisten dengan halaman Interns
       prisma.user.count({
         where: {
           role: "INTERN",
+          approvalStatus: "APPROVED",
           certificate: { isNot: null }
         }
       }),
 
       prisma.certificate.count(),
 
-      // Pending user registrations (INTERN + MENTOR waiting approval)
+      // Menunggu approval akun: PENDING, role INTERN/MENTOR
+      // Konsisten dengan halaman Reports
       prisma.user.count({
         where: {
           approvalStatus: "PENDING",
@@ -48,7 +56,8 @@ export async function getDashboardStats() {
         }
       }),
 
-      // Total approved mentors
+      // Total mentor: role MENTOR, akun APPROVED, bukan REJECTED
+      // Konsisten dengan halaman Mentors (getUsersByRole exclude REJECTED)
       prisma.user.count({
         where: {
           role: "MENTOR",
@@ -56,12 +65,13 @@ export async function getDashboardStats() {
         }
       }),
 
-      // Logbooks not yet reviewed
+      // Logbook pending review
+      // Konsisten dengan halaman Monitoring
       prisma.logbook.count({
         where: { status: "pending" }
       }),
 
-      // 5 latest logbooks with status
+      // 5 logbook terbaru
       prisma.logbook.findMany({
         take: 5,
         orderBy: { date: "desc" },

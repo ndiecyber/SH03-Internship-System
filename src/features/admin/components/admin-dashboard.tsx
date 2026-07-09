@@ -84,9 +84,9 @@ export function AdminDashboard({ initialData }: Readonly<AdminDashboardProps>) {
   const stats = [
     // --- Ikhtisar ---
     {
-      label: "Total Pendaftar",
+      label: "Total Lamaran",
       value: data.totalApplicants,
-      unit: "orang",
+      unit: "lamaran",
       icon: Users,
       iconBg: "bg-blue-50",
       iconColor: "text-blue-600",
@@ -141,7 +141,7 @@ export function AdminDashboard({ initialData }: Readonly<AdminDashboardProps>) {
       icon: Bell,
       iconBg: "bg-orange-50",
       iconColor: "text-orange-500",
-      href: "/admin/applicants",
+      href: "/admin/reports",
       alert: data.pendingApprovals > 0
     },
     {

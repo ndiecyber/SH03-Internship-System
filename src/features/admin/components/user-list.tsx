@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { deleteUser, assignMentorToIntern, unassignMentorFromIntern } from "../services/user-management.actions";
 import {
   Trash2, Loader2, CheckCircle, Clock, XCircle,
-  ExternalLink, UserCheck, UserX
+  ExternalLink, UserCheck, UserX, Award
 } from "lucide-react";
 
 interface Application {
@@ -33,8 +33,8 @@ interface User {
   approvedAt: Date | null;
   applications?: Application[];
   assignedMentor?: Mentor | null;
-  // for MENTOR role: list of interns they handle
   assignedInterns?: { id: string; name: string | null; email: string }[];
+  certificate?: { certNumber: string; issuedAt: Date } | null;
 }
 
 interface UserListProps {
@@ -168,6 +168,14 @@ export function UserList({ users, roleLabel, mentors, onRefresh }: Readonly<User
 
                 {/* Application status — only relevant for interns */}
                 {user.role !== "MENTOR" && getApplicationBadge(user.applications)}
+
+                {/* Certificate badge — shown when intern has completed */}
+                {user.role !== "MENTOR" && user.certificate && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-700">
+                    <Award className="h-3.5 w-3.5" />
+                    Selesai — {user.certificate.certNumber}
+                  </span>
+                )}
 
                 {/* CV link — only relevant for interns */}
                 {user.role !== "MENTOR" && user.applications?.[0]?.cvUrl && user.applications[0].status === "pending" && (

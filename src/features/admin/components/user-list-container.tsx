@@ -30,6 +30,7 @@ interface User {
   approvedAt: Date | null;
   applications?: Application[];
   assignedMentor?: Mentor | null;
+  certificate?: { certNumber: string; issuedAt: Date } | null;
 }
 
 interface UserListContainerProps {
@@ -61,17 +62,22 @@ export function UserListContainer({
   }, [role]);
 
   const tabs = role === "INTERN" ? [
-    { id: "all", label: "Semua" },
-    { id: "aktif", label: "Peserta Aktif" },
-    { id: "belum", label: "Belum Daftar" },
+    { id: "all",     label: "Semua" },
+    { id: "aktif",   label: "Peserta Aktif" },
+    { id: "selesai", label: "Peserta Selesai" },
+    { id: "belum",   label: "Belum Daftar" },
   ] : [];
 
   const filteredUsers = users.filter((u) => {
+    const hasApprovedApp = u.applications?.some((a) => a.status === "approved");
+    const hasCertificate = !!u.certificate;
+
     const matchesFilter =
       role !== "INTERN" ||
       filterStatus === "all" ||
-      (filterStatus === "aktif" && u.applications?.some((a) => a.status === "approved")) ||
-      (filterStatus === "belum" && (!u.applications || u.applications.length === 0));
+      (filterStatus === "aktif"   && hasApprovedApp && !hasCertificate) ||
+      (filterStatus === "selesai" && hasCertificate) ||
+      (filterStatus === "belum"   && (!u.applications || u.applications.length === 0));
 
     const matchesSearch =
       !searchQuery ||
