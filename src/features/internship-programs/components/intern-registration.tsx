@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Briefcase, Link as LinkIcon, Send, X, CheckCircle, Clock, AlertTriangle, HelpCircle } from "lucide-react";
-import { applyForProgramAction } from "../services/application.actions";
+import { Briefcase, Link as LinkIcon, Send, X, CheckCircle, Clock, AlertTriangle, HelpCircle, RefreshCw } from "lucide-react";
+import { applyForProgramAction, resubmitApplicationAction } from "../services/application.actions";
 import { Button } from "@/components/ui/button";
 
 type Program = {
@@ -37,6 +37,14 @@ export function InternRegistration({ programs, applications: initialApps }: Read
   const [success, setSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Resubmit state — holds the rejected application being edited
+  const [resubmitApp, setResubmitApp] = useState<Application | null>(null);
+  const [resubmitCvUrl, setResubmitCvUrl] = useState("");
+  const [resubmitNotes, setResubmitNotes] = useState("");
+  const [resubmitError, setResubmitError] = useState<string | null>(null);
+  const [resubmitSuccess, setResubmitSuccess] = useState(false);
+  const [isResubmitting, setIsResubmitting] = useState(false);
+
   const handleOpenForm = (program: Program) => {
     setSelectedProgram(program);
     setCvUrl("");
@@ -47,6 +55,54 @@ export function InternRegistration({ programs, applications: initialApps }: Read
 
   const handleCloseForm = () => {
     setSelectedProgram(null);
+  };
+
+  const handleOpenResubmit = (app: Application) => {
+    setResubmitApp(app);
+    setResubmitCvUrl(app.cvUrl ?? "");
+    setResubmitNotes(app.notes ?? "");
+    setResubmitError(null);
+    setResubmitSuccess(false);
+  };
+
+  const handleCloseResubmit = () => {
+    setResubmitApp(null);
+  };
+
+  const handleResubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resubmitApp) return;
+    if (!resubmitCvUrl) {
+      setResubmitError("Link CV wajib diisi.");
+      return;
+    }
+    setIsResubmitting(true);
+    setResubmitError(null);
+    try {
+      const res = await resubmitApplicationAction({
+        applicationId: resubmitApp.id,
+        cvUrl: resubmitCvUrl,
+        notes: resubmitNotes
+      });
+      if (res.error) {
+        setResubmitError(res.error);
+      } else {
+        setResubmitSuccess(true);
+        setApplications((prev) =>
+          prev.map((a) =>
+            a.id === resubmitApp.id
+              ? { ...a, status: "pending", cvUrl: resubmitCvUrl, notes: resubmitNotes }
+              : a
+          )
+        );
+        setTimeout(() => setResubmitApp(null), 1500);
+      }
+    } catch (err) {
+      console.error(err);
+      setResubmitError("Gagal mengirim ulang pendaftaran.");
+    } finally {
+      setIsResubmitting(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -166,6 +222,16 @@ export function InternRegistration({ programs, applications: initialApps }: Read
                     <LinkIcon className="h-3.5 w-3.5" />
                     <span>Lihat CV yang Dikirim</span>
                   </a>
+                )}
+                {app.status === "rejected" && (
+                  <Button
+                    size="sm"
+                    onClick={() => handleOpenResubmit(app)}
+                    className="mt-2 self-start bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1.5"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Edit &amp; Kirim Ulang
+                  </Button>
                 )}
               </div>
             ))}
@@ -307,6 +373,103 @@ export function InternRegistration({ programs, applications: initialApps }: Read
                       <>
                         <Send className="h-3.5 w-3.5" />
                         <span>Kirim Pendaftaran</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+      {/* Resubmit Modal */}
+      {resubmitApp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-white rounded-2xl border border-slate-100 p-6 shadow-2xl space-y-4 transform animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b pb-3">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Edit &amp; Kirim Ulang Pendaftaran</h3>
+                <p className="text-xs text-slate-500">Posisi: {resubmitApp.program.title}</p>
+              </div>
+              <button
+                onClick={handleCloseResubmit}
+                className="text-slate-400 hover:text-slate-600 rounded-full p-1 hover:bg-slate-100 transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {resubmitSuccess ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
+                <CheckCircle className="h-14 w-14 text-emerald-500 animate-bounce" />
+                <h4 className="font-bold text-slate-800 text-lg">Pendaftaran Berhasil Dikirim Ulang!</h4>
+                <p className="text-sm text-slate-500">Pendaftaran Anda sedang diproses kembali oleh administrator.</p>
+              </div>
+            ) : (
+              <form onSubmit={handleResubmit} className="space-y-4">
+                <div className="rounded-lg border border-amber-100 bg-amber-50 px-4 py-2.5 text-xs text-amber-700">
+                  Perbarui link CV Anda lalu kirim ulang. Status akan kembali ke <strong>Pending</strong> untuk ditinjau admin.
+                </div>
+
+                {resubmitError && (
+                  <div className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>{resubmitError}</span>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700" htmlFor="resubmit-cv-link">
+                    Link CV (Google Drive / PDF Online)
+                  </label>
+                  <div className="relative">
+                    <LinkIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      id="resubmit-cv-link"
+                      type="url"
+                      placeholder="https://drive.google.com/..."
+                      value={resubmitCvUrl}
+                      onChange={(e) => setResubmitCvUrl(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400">Pastikan izin akses dokumen diatur ke &quot;Anyone with link&quot; (publik).</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700" htmlFor="resubmit-notes">
+                    Catatan Tambahan / Motivasi (Opsional)
+                  </label>
+                  <textarea
+                    id="resubmit-notes"
+                    rows={3}
+                    placeholder="Perbarui motivasi atau catatan Anda..."
+                    value={resubmitNotes}
+                    onChange={(e) => setResubmitNotes(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 py-2 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 border-t pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCloseResubmit}
+                    className="border-slate-200 text-slate-600 hover:bg-slate-50 font-medium"
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isResubmitting}
+                    className="bg-blue-600 hover:bg-blue-700 font-medium text-white flex items-center gap-1.5"
+                  >
+                    {isResubmitting ? (
+                      "Mengirim..."
+                    ) : (
+                      <>
+                        <Send className="h-3.5 w-3.5" />
+                        <span>Kirim Ulang</span>
                       </>
                     )}
                   </Button>
