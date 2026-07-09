@@ -150,6 +150,8 @@ export function InternRegistration({ programs, applications: initialApps }: Read
     }
   };
 
+  const hasApprovedApplication = applications.some((a) => a.status === "approved");
+
   return (
     <div className="space-y-8">
       {/* Page Header */}
@@ -239,7 +241,8 @@ export function InternRegistration({ programs, applications: initialApps }: Read
         </section>
       )}
 
-      {/* Program Vacancy List */}
+      {/* Program Vacancy List — only shown if not yet accepted */}
+      {!hasApprovedApplication && (
       <section className="space-y-4">
         <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
           <Briefcase className="h-5 w-5 text-blue-600" />
@@ -288,7 +291,22 @@ export function InternRegistration({ programs, applications: initialApps }: Read
           </div>
         )}
       </section>
+      )}
 
+      {/* Banner — already accepted */}
+      {hasApprovedApplication && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 flex items-start gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+            <CheckCircle className="h-5 w-5 text-emerald-600" />
+          </div>
+          <div>
+            <p className="font-semibold text-emerald-800 text-sm">Anda sudah diterima di program magang</p>
+            <p className="text-xs text-emerald-700 mt-0.5">
+              Pendaftaran ke program lain tidak tersedia karena Anda sudah aktif sebagai peserta magang. Fokus pada program yang sedang berjalan.
+            </p>
+          </div>
+        </div>
+      )}
       {/* Application Form Drawer/Modal Overlay */}
       {selectedProgram && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">

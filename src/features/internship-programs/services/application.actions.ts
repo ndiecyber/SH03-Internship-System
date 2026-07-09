@@ -36,12 +36,17 @@ export async function applyForProgramAction(formData: {
     if (!formData.programId) return { error: "Program magang tidak valid." };
     if (!formData.cvUrl) return { error: "Link CV wajib diisi." };
 
-    // Check if user has already applied to this program
+    // Block if user already has an approved application (accepted in a program)
+    const approvedApp = await prisma.application.findFirst({
+      where: { userId: session.user.id, status: "approved" }
+    });
+    if (approvedApp) {
+      return { error: "Anda sudah diterima di program magang. Tidak dapat mendaftar ke program lain." };
+    }
+
+    // Check if user has already applied to this specific program
     const existing = await prisma.application.findFirst({
-      where: {
-        userId: session.user.id,
-        programId: formData.programId
-      }
+      where: { userId: session.user.id, programId: formData.programId }
     });
 
     if (existing) {
