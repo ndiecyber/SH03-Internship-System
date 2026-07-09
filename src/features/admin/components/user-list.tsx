@@ -165,11 +165,11 @@ export function UserList({ users, roleLabel, mentors, onRefresh }: Readonly<User
                   <p className="text-sm text-slate-500 truncate">{user.email}</p>
                 </div>
 
-                {/* Application status */}
-                {getApplicationBadge(user.applications)}
+                {/* Application status — only relevant for interns */}
+                {user.role !== "MENTOR" && getApplicationBadge(user.applications)}
 
-                {/* CV link */}
-                {user.applications?.[0]?.cvUrl && user.applications[0].status === "pending" && (
+                {/* CV link — only relevant for interns */}
+                {user.role !== "MENTOR" && user.applications?.[0]?.cvUrl && user.applications[0].status === "pending" && (
                   <a
                     href={user.applications[0].cvUrl}
                     target="_blank"
