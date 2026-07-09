@@ -80,9 +80,18 @@ export async function submitEvaluationAction(formData: {
     const finalScore =
       (technicalScore + attitudeScore + communicationScore + attendanceScore) / 4;
 
-    // Save evaluation
-    await prisma.evaluation.create({
-      data: {
+    // Save evaluation — upsert agar tidak error jika submit ulang
+    await prisma.evaluation.upsert({
+      where: { internId },
+      update: {
+        technicalScore,
+        attitudeScore,
+        communicationScore,
+        attendanceScore,
+        finalScore,
+        notes
+      },
+      create: {
         internId,
         mentorId: session.user.id,
         technicalScore,
@@ -112,5 +121,55 @@ export async function submitEvaluationAction(formData: {
   } catch (error) {
     console.error("Error submitting evaluation:", error);
     return { error: "Gagal menyimpan evaluasi nilai." };
+  }
+}
+
+export async function updateEvaluationAction(formData: {
+  internId: string;
+  technicalScore: number;
+  attitudeScore: number;
+  communicationScore: number;
+  attendanceScore: number;
+  notes: string;
+}) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { error: "Anda harus login terlebih dahulu." };
+    }
+
+    const {
+      internId,
+      technicalScore,
+      attitudeScore,
+      communicationScore,
+      attendanceScore,
+      notes
+    } = formData;
+
+    if (!internId) return { error: "ID intern tidak valid." };
+
+    const finalScore =
+      (technicalScore + attitudeScore + communicationScore + attendanceScore) / 4;
+
+    await prisma.evaluation.update({
+      where: { internId },
+      data: {
+        technicalScore,
+        attitudeScore,
+        communicationScore,
+        attendanceScore,
+        finalScore,
+        notes
+      }
+    });
+
+    revalidatePath("/mentor/evaluation");
+    revalidatePath("/intern/progress");
+    revalidatePath("/admin/dashboard");
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating evaluation:", error);
+    return { error: "Gagal memperbarui evaluasi nilai." };
   }
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Award, CheckCircle, AlertCircle, X, Sparkles, User } from "lucide-react";
-import { submitEvaluationAction } from "../services/evaluation.actions";
+import { Award, CheckCircle, AlertCircle, X, Sparkles, User, Pencil } from "lucide-react";
+import { submitEvaluationAction, updateEvaluationAction } from "../services/evaluation.actions";
 import { Button } from "@/components/ui/button";
 
 type Evaluation = {
@@ -36,7 +36,8 @@ type InternEvaluatorProps = {
 export function InternEvaluator({ initialInterns }: Readonly<InternEvaluatorProps>) {
   const [interns, setInterns] = useState<Intern[]>(initialInterns);
   const [selectedIntern, setSelectedIntern] = useState<Intern | null>(null);
-  
+  const [isEditMode, setIsEditMode] = useState(false);
+
   // Form states
   const [technical, setTechnical] = useState(80);
   const [attitude, setAttitude] = useState(80);
@@ -49,6 +50,7 @@ export function InternEvaluator({ initialInterns }: Readonly<InternEvaluatorProp
 
   const handleOpenForm = (intern: Intern) => {
     setSelectedIntern(intern);
+    setIsEditMode(false);
     setTechnical(80);
     setAttitude(80);
     setCommunication(80);
@@ -58,8 +60,22 @@ export function InternEvaluator({ initialInterns }: Readonly<InternEvaluatorProp
     setSuccess(false);
   };
 
+  const handleOpenEdit = (intern: Intern) => {
+    if (!intern.internEvaluation) return;
+    setSelectedIntern(intern);
+    setIsEditMode(true);
+    setTechnical(intern.internEvaluation.technicalScore);
+    setAttitude(intern.internEvaluation.attitudeScore);
+    setCommunication(intern.internEvaluation.communicationScore);
+    setAttendance(intern.internEvaluation.attendanceScore);
+    setNotes(intern.internEvaluation.notes ?? "");
+    setError(null);
+    setSuccess(false);
+  };
+
   const handleCloseForm = () => {
     setSelectedIntern(null);
+    setIsEditMode(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,7 +92,6 @@ export function InternEvaluator({ initialInterns }: Readonly<InternEvaluatorProp
       attendanceScore: Number(attendance)
     };
 
-    // Score validation
     const hasInvalidScore = Object.values(scores).some(s => s < 0 || s > 100);
     if (hasInvalidScore) {
       setError("Semua nilai harus berada di antara 0 dan 100.");
@@ -85,7 +100,8 @@ export function InternEvaluator({ initialInterns }: Readonly<InternEvaluatorProp
     }
 
     try {
-      const res = await submitEvaluationAction({
+      const action = isEditMode ? updateEvaluationAction : submitEvaluationAction;
+      const res = await action({
         internId: selectedIntern.id,
         ...scores,
         notes
@@ -95,7 +111,6 @@ export function InternEvaluator({ initialInterns }: Readonly<InternEvaluatorProp
         setError(res.error);
       } else {
         setSuccess(true);
-        // Update local state to reflect that the intern has been evaluated
         const final = (scores.technicalScore + scores.attitudeScore + scores.communicationScore + scores.attendanceScore) / 4;
         setInterns((prev) =>
           prev.map((i) =>
@@ -103,23 +118,21 @@ export function InternEvaluator({ initialInterns }: Readonly<InternEvaluatorProp
               ? {
                   ...i,
                   internEvaluation: {
-                    id: Math.random().toString(),
+                    id: i.internEvaluation?.id ?? Math.random().toString(),
                     ...scores,
                     finalScore: final,
                     notes
                   },
-                  certificate: {
+                  certificate: i.certificate ?? {
                     id: Math.random().toString(),
-                    certNumber: "CERT-2026-TEMP",
+                    certNumber: `LEXA-INT-2026-0401-????`,
                     issuedAt: new Date()
                   }
                 }
               : i
           )
         );
-        setTimeout(() => {
-          setSelectedIntern(null);
-        }, 1500);
+        setTimeout(() => setSelectedIntern(null), 1500);
       }
     } catch (err) {
       console.error(err);
@@ -203,13 +216,22 @@ export function InternEvaluator({ initialInterns }: Readonly<InternEvaluatorProp
                   )}
                 </div>
 
-                {!hasGraduated && (
+                {!hasGraduated ? (
                   <Button
                     onClick={() => handleOpenForm(intern)}
                     className="w-full mt-4 bg-blue-600 hover:bg-blue-700 font-medium text-white shadow-md flex items-center justify-center gap-1.5"
                   >
                     <Sparkles className="h-4 w-4 text-amber-300" />
                     <span>Beri Nilai & Sertifikat</span>
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => handleOpenEdit(intern)}
+                    variant="outline"
+                    className="w-full mt-4 border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-1.5"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    <span>Edit Nilai</span>
                   </Button>
                 )}
               </div>
@@ -224,7 +246,9 @@ export function InternEvaluator({ initialInterns }: Readonly<InternEvaluatorProp
           <div className="w-full max-w-lg bg-white rounded-2xl border border-slate-100 p-6 shadow-2xl space-y-4 transform animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center border-b pb-3">
               <div>
-                <h3 className="text-lg font-bold text-slate-800">Evaluasi & Kelulusan Intern</h3>
+                <h3 className="text-lg font-bold text-slate-800">
+                  {isEditMode ? "Edit Nilai Evaluasi" : "Evaluasi & Kelulusan Intern"}
+                </h3>
                 <p className="text-xs text-slate-500">Intern: {selectedIntern.name}</p>
               </div>
               <button
@@ -238,8 +262,14 @@ export function InternEvaluator({ initialInterns }: Readonly<InternEvaluatorProp
             {success ? (
               <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
                 <CheckCircle className="h-14 w-14 text-emerald-500 animate-bounce" />
-                <h4 className="font-bold text-slate-800 text-lg">Evaluasi Berhasil Dikirim!</h4>
-                <p className="text-sm text-slate-500 font-medium">Sertifikat kelulusan otomatis peserta telah dibuat.</p>
+                <h4 className="font-bold text-slate-800 text-lg">
+                  {isEditMode ? "Nilai Berhasil Diperbarui!" : "Evaluasi Berhasil Dikirim!"}
+                </h4>
+                <p className="text-sm text-slate-500 font-medium">
+                  {isEditMode
+                    ? "Nilai evaluasi intern telah diperbarui."
+                    : "Sertifikat kelulusan otomatis peserta telah dibuat."}
+                </p>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -340,7 +370,11 @@ export function InternEvaluator({ initialInterns }: Readonly<InternEvaluatorProp
                     disabled={isSubmitting}
                     className="bg-blue-600 hover:bg-blue-700 font-medium text-white"
                   >
-                    {isSubmitting ? "Mengirim..." : "Kirim & Rilis Sertifikat"}
+                    {isSubmitting
+                      ? "Mengirim..."
+                      : isEditMode
+                      ? "Simpan Perubahan"
+                      : "Kirim & Rilis Sertifikat"}
                   </Button>
                 </div>
               </form>
