@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { User, KeyRound, Mail, CheckCircle, AlertCircle, Shield } from "lucide-react";
+import { User, KeyRound, Mail, CheckCircle, AlertCircle, Shield, Github } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { updateProfileAction, changePasswordAction, changeEmailAction } from "../services/profile.actions";
+import { signIn } from "next-auth/react";
+import { updateProfileAction, changePasswordAction, changeEmailAction, updateGithubUsernameAction } from "../services/profile.actions";
 
 type ProfileFormProps = {
   user: {
@@ -13,6 +14,8 @@ type ProfileFormProps = {
     role: string;
     createdAt: Date;
     approvalStatus: string;
+    githubUsername?: string | null;
+    accounts?: { providerAccountId: string }[];
   };
 };
 
@@ -38,6 +41,9 @@ export function ProfileForm({ user }: Readonly<ProfileFormProps>) {
   const [pwLoading, setPwLoading] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwSuccess, setPwSuccess] = useState(false);
+
+  const isGithubConnected = user.accounts && user.accounts.length > 0;
+  const [githubLoading, setGithubLoading] = useState(false);
 
   const joinedDate = new Date(user.createdAt).toLocaleDateString("id-ID", {
     day: "numeric",
@@ -106,6 +112,11 @@ export function ProfileForm({ user }: Readonly<ProfileFormProps>) {
     }
 
     setPwLoading(false);
+  };
+
+  const handleConnectGithub = () => {
+    setGithubLoading(true);
+    signIn("github", { callbackUrl: window.location.href });
   };
 
   return (
@@ -329,6 +340,55 @@ export function ProfileForm({ user }: Readonly<ProfileFormProps>) {
             {pwLoading ? "Memproses..." : "Ganti Password"}
           </Button>
         </form>
+      </div>
+
+      {/* GitHub Connection */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="h-9 w-9 rounded-full bg-slate-800 flex items-center justify-center shrink-0">
+            <Github className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">Koneksi GitHub</h2>
+            <p className="text-xs text-slate-500">
+              Hubungkan akun GitHub untuk baca commit dari repo private dan kolaborasi
+            </p>
+          </div>
+        </div>
+
+        <div className="max-w-md">
+          {isGithubConnected ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-4 rounded-xl border border-emerald-100 bg-emerald-50 text-emerald-800">
+                <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
+                <div className="text-sm">
+                  <p className="font-semibold">Akun GitHub Terhubung</p>
+                  <p className="text-emerald-600/80 text-xs mt-0.5">Logbook otomatis sudah aktif sepenuhnya.</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-4 rounded-xl border border-amber-100 bg-amber-50 text-amber-800">
+                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-semibold">Belum Terhubung</p>
+                  <p className="text-amber-700/80 text-xs mt-0.5">
+                    Anda perlu login dengan GitHub agar sistem dapat membaca repository kolaborasi Anda.
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={handleConnectGithub}
+                disabled={githubLoading}
+                className="bg-slate-800 hover:bg-slate-900 text-white font-semibold text-sm flex items-center gap-2 w-full sm:w-auto"
+              >
+                <Github className="h-4 w-4" />
+                {githubLoading ? "Menghubungkan..." : "Hubungkan dengan GitHub"}
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

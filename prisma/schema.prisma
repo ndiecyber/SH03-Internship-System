@@ -33,6 +33,7 @@ model User {
   rejectedAt       DateTime?        // When the registration was rejected
   approvedAt       DateTime?        // When the registration was approved
   approvedBy       String?          // Admin ID who approved
+  githubUsername   String?          // GitHub username for logbook auto-import
   accounts         Account[]
   sessions         Session[]
   createdAt        DateTime         @default(now())

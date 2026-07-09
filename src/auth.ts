@@ -3,6 +3,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 import { authConfig } from "@/lib/auth/config";
 import Credentials from "next-auth/providers/credentials";
+import Github from "next-auth/providers/github";
 import { z } from "zod";
 import { verifyPassword } from "@/utils/hash";
 
@@ -13,6 +14,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   useSecureCookies: process.env.NODE_ENV === "production",
   ...authConfig,
   providers: [
+    Github({
+      clientId: process.env.GITHUB_ID,
+      clientSecret: process.env.GITHUB_SECRET,
+      authorization: {
+        params: {
+          scope: "read:user repo", // Needs repo scope to read collaborator/private repos
+        },
+      },
+    }),
     Credentials({
       async authorize(credentials) {
         const parsedCredentials = z

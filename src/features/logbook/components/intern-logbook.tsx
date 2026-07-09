@@ -1,8 +1,31 @@
 "use client";
 
 import { useState } from "react";
-import { ClipboardList, Plus, Calendar, AlertCircle, CheckCircle, Clock, XCircle, MessageSquare } from "lucide-react";
+import {
+  ClipboardList,
+  Plus,
+  Calendar,
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  XCircle,
+  MessageSquare,
+  Github,
+  GitCommitHorizontal,
+  Loader2,
+  Wand2,
+  ChevronDown,
+  ChevronUp,
+  BookMarked,
+  ArrowRight
+} from "lucide-react";
 import { createLogbookAction } from "../services/logbook.actions";
+import {
+  fetchGithubReposAction,
+  fetchGithubCommitsAction,
+  type GithubRepo,
+  type GithubCommit
+} from "../services/github.actions";
 import { Button } from "@/components/ui/button";
 
 type LogbookEntry = {
@@ -18,15 +41,37 @@ type InternLogbookProps = {
   initialLogbooks: LogbookEntry[];
 };
 
+// GitHub import steps
+type GithubStep = "idle" | "picking-repo" | "fetching-commits" | "done";
+
 export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>) {
   const [logbooks, setLogbooks] = useState<LogbookEntry[]>(initialLogbooks);
-  const today = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+  const today = new Date().toISOString().split("T")[0];
   const [isAdding, setIsAdding] = useState(false);
   const [activity, setActivity] = useState("");
   const [progress, setProgress] = useState(50);
   const [logDate, setLogDate] = useState(today);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // GitHub import states
+  const [githubStep, setGithubStep] = useState<GithubStep>("idle");
+  const [githubLoading, setGithubLoading] = useState(false);
+  const [githubError, setGithubError] = useState<string | null>(null);
+  const [repos, setRepos] = useState<GithubRepo[]>([]);
+  const [selectedRepo, setSelectedRepo] = useState<string>(""); // full_name e.g. "user/repo"
+  const [githubUsername, setGithubUsername] = useState<string | null>(null);
+  const [githubCommits, setGithubCommits] = useState<GithubCommit[] | null>(null);
+  const [showCommits, setShowCommits] = useState(true);
+
+  const resetGithub = () => {
+    setGithubStep("idle");
+    setGithubLoading(false);
+    setGithubError(null);
+    setRepos([]);
+    setSelectedRepo("");
+    setGithubCommits(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +88,6 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
       if (res.error) {
         setError(res.error);
       } else {
-        // Optimistically append new logbook
         const newLog: LogbookEntry = {
           id: Math.random().toString(),
           date: logDate ? new Date(logDate) : new Date(),
@@ -57,6 +101,7 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
         setProgress(50);
         setLogDate(today);
         setIsAdding(false);
+        resetGithub();
       }
     } catch (err) {
       console.error(err);
@@ -64,6 +109,92 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Step 2: Fetch commits from selected repo
+  const handleFetchCommits = async (repoToFetch: string = selectedRepo, dateToFetch: string = logDate) => {
+    if (!repoToFetch) {
+      setGithubError("Pilih repository terlebih dahulu.");
+      return;
+    }
+
+    setGithubLoading(true);
+    setGithubError(null);
+    setGithubStep("fetching-commits");
+
+    const result = await fetchGithubCommitsAction(dateToFetch, repoToFetch);
+
+    if (result.error) {
+      setGithubError(result.error);
+      setGithubStep("picking-repo");
+    } else {
+      setGithubCommits(result.commits ?? []);
+      setGithubStep("done");
+
+      // Auto-fill textarea if commits found
+      if (result.commits && result.commits.length > 0) {
+        const lines = result.commits.map(
+          (c) => `[${c.timestamp}] ${c.repo.split("/")[1] ?? c.repo}: ${c.message}`
+        );
+        setActivity(lines.join("\n"));
+      }
+    }
+
+    setGithubLoading(false);
+  };
+
+  // Step 1: Fetch repo list
+  const handleFetchRepos = async () => {
+    setGithubLoading(true);
+    setGithubError(null);
+    setGithubCommits(null);
+    setSelectedRepo("");
+
+    const result = await fetchGithubReposAction();
+
+    if (result.error) {
+      setGithubError(result.error);
+      setGithubStep("idle");
+    } else {
+      const fetchedRepos = result.repos ?? [];
+      setRepos(fetchedRepos);
+      setGithubUsername(result.username ?? null);
+
+      // Auto-select previously chosen repository if it still exists
+      const lastRepo = localStorage.getItem("internship-system-last-repo");
+      if (lastRepo && fetchedRepos.some((r) => r.name === lastRepo)) {
+        setSelectedRepo(lastRepo);
+        // Automatically fetch commits immediately
+        await handleFetchCommits(lastRepo, logDate);
+      } else {
+        setGithubStep("picking-repo");
+      }
+    }
+
+    setGithubLoading(false);
+  };
+
+
+
+  const handleApplyCommits = () => {
+    if (!githubCommits || githubCommits.length === 0) return;
+    const lines = githubCommits.map(
+      (c) => `[${c.timestamp}] ${c.repo.split("/")[1] ?? c.repo}: ${c.message}`
+    );
+    setActivity(lines.join("\n"));
+  };
+
+  const openAddForm = () => {
+    setIsAdding(true);
+    resetGithub();
+  };
+
+  const closeForm = () => {
+    setIsAdding(false);
+    setActivity("");
+    setProgress(50);
+    setLogDate(today);
+    resetGithub();
   };
 
   return (
@@ -75,11 +206,13 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
             <ClipboardList className="h-6 w-6 text-blue-600" />
             <span>Logbook Harian</span>
           </h1>
-          <p className="text-sm text-slate-500">Laporkan aktivitas magang harian Anda dan pantau evaluasi mentor.</p>
+          <p className="text-sm text-slate-500">
+            Laporkan aktivitas magang harian Anda dan pantau evaluasi mentor.
+          </p>
         </div>
         {!isAdding && (
           <Button
-            onClick={() => setIsAdding(true)}
+            onClick={openAddForm}
             className="bg-blue-600 hover:bg-blue-700 font-medium text-white flex items-center gap-2 self-start"
           >
             <Plus className="h-4 w-4" />
@@ -92,16 +225,16 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
       {isAdding && (
         <form
           onSubmit={handleSubmit}
-          className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md space-y-4 animate-in fade-in slide-in-from-top-4 duration-300"
+          className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md space-y-5 animate-in fade-in slide-in-from-top-4 duration-300"
         >
           <div className="flex justify-between items-center border-b pb-3">
             <h2 className="text-lg font-bold text-slate-800">Isi Aktivitas Harian</h2>
             <button
               type="button"
-              onClick={() => setIsAdding(false)}
-              className="text-slate-400 hover:text-slate-600 rounded-full p-1 hover:bg-slate-100 transition"
+              onClick={closeForm}
+              className="text-slate-400 hover:text-slate-600 rounded-full p-1 hover:bg-slate-100 transition text-xl leading-none"
             >
-              <Calendar className="h-5 w-5" />
+              ✕
             </button>
           </div>
 
@@ -112,6 +245,7 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
             </div>
           )}
 
+          {/* Date field */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-700" htmlFor="log-date">
               Tanggal Aktivitas
@@ -121,25 +255,228 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
               type="date"
               value={logDate}
               max={today}
-              onChange={(e) => setLogDate(e.target.value)}
+              onChange={(e) => {
+                const newDate = e.target.value;
+                setLogDate(newDate);
+                // If a repo is already selected, auto-fetch for the new date
+                if (selectedRepo && githubStep !== "idle") {
+                  handleFetchCommits(selectedRepo, newDate);
+                }
+              }}
               className="w-full max-w-xs rounded-lg border border-slate-200 py-2 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
             />
           </div>
 
+          {/* ───── GitHub Import Section ───── */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Github className="h-4 w-4 text-slate-700" />
+                <span className="text-sm font-semibold text-slate-700">
+                  Import Otomatis dari GitHub
+                </span>
+                <span className="text-[10px] bg-blue-100 text-blue-700 font-bold rounded-full px-2 py-0.5 uppercase tracking-wide">
+                  Baru
+                </span>
+              </div>
+              {githubStep === "done" && githubCommits !== null && (
+                <button
+                  type="button"
+                  onClick={() => setShowCommits((p) => !p)}
+                  className="text-slate-400 hover:text-slate-600 transition"
+                >
+                  {showCommits ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+              )}
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Tarik riwayat commit dari repository GitHub spesifik dan jadikan sebagai isi logbook.
+            </p>
+
+            {/* ── STEP INDICATOR ── */}
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <span className={`font-semibold ${githubStep !== "idle" ? "text-blue-600" : "text-slate-400"}`}>
+                1. Pilih Repository
+              </span>
+              <ArrowRight className="h-3 w-3" />
+              <span className={`font-semibold ${githubStep === "done" || githubStep === "fetching-commits" ? "text-blue-600" : "text-slate-400"}`}>
+                2. Ambil Commit
+              </span>
+              <ArrowRight className="h-3 w-3" />
+              <span className={`font-semibold ${githubStep === "done" ? "text-emerald-600" : "text-slate-400"}`}>
+                3. Terapkan
+              </span>
+            </div>
+
+            {/* Error display */}
+            {githubError && (
+              <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-700">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{githubError}</span>
+              </div>
+            )}
+
+            {/* ── STEP 1: Load Repos button / Repo Picker ── */}
+            {(githubStep === "idle" || githubStep === "picking-repo") && (
+              <div className="space-y-3">
+                {githubStep === "idle" && (
+                  <Button
+                    type="button"
+                    onClick={handleFetchRepos}
+                    disabled={githubLoading}
+                    variant="outline"
+                    className="border-slate-300 bg-white text-slate-700 hover:bg-slate-100 text-sm font-medium flex items-center gap-2 w-full sm:w-auto"
+                  >
+                    {githubLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <BookMarked className="h-4 w-4" />
+                    )}
+                    {githubLoading ? "Memuat repository..." : "Muat Daftar Repository"}
+                  </Button>
+                )}
+
+                {githubStep === "picking-repo" && repos.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-600" htmlFor="repo-select">
+                        Pilih Repository — @{githubUsername} ({repos.length} repo publik)
+                      </label>
+                      <select
+                        id="repo-select"
+                        value={selectedRepo}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSelectedRepo(val);
+                          if (val) {
+                            localStorage.setItem("internship-system-last-repo", val);
+                            handleFetchCommits(val, logDate); // Auto-fetch on select
+                          } else {
+                            localStorage.removeItem("internship-system-last-repo");
+                            setGithubCommits(null);
+                          }
+                        }}
+                        className="w-full rounded-lg border border-slate-200 bg-white py-2.5 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
+                      >
+                        <option value="">-- Pilih repository --</option>
+                        {repos.map((repo) => (
+                          <option key={repo.name} value={repo.name}>
+                            {repo.displayName}
+                            {repo.description ? ` — ${repo.description.slice(0, 40)}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={resetGithub}
+                        className="text-xs text-slate-400 hover:text-slate-600 transition underline"
+                      >
+                        Reset / Muat Ulang Daftar Repo
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── STEP 3: Commit Preview ── */}
+            {githubStep === "done" && githubCommits !== null && showCommits && (
+              <div className="space-y-2 pt-1">
+                {githubCommits.length === 0 ? (
+                  <div className="text-center py-4 text-sm text-slate-400">
+                    <GitCommitHorizontal className="h-8 w-8 mx-auto mb-1 opacity-40" />
+                    <p>Tidak ada commit pada tanggal ini</p>
+                    <p className="text-xs mt-0.5">
+                      di repository{" "}
+                      <span className="font-bold text-slate-600">{selectedRepo.split("/")[1]}</span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setGithubStep("picking-repo")}
+                      className="mt-2 text-xs text-blue-500 hover:underline"
+                    >
+                      ← Pilih repository lain
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                        {githubCommits.length} commit — {selectedRepo.split("/")[1]}
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setGithubStep("picking-repo")}
+                          className="text-xs text-slate-400 hover:text-slate-600 transition underline"
+                        >
+                          ← Ganti repo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleApplyCommits}
+                          className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
+                        >
+                          <Wand2 className="h-3 w-3" />
+                          Terapkan ke Logbook
+                        </button>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                      {githubCommits.map((commit) => (
+                        <div
+                          key={commit.sha}
+                          className="flex items-start gap-2.5 bg-white border border-slate-100 rounded-lg p-2.5"
+                        >
+                          <GitCommitHorizontal className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-slate-700 truncate">
+                              {commit.message}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] text-slate-400">{commit.timestamp}</span>
+                              <span className="text-[10px] text-slate-300">·</span>
+                              <span className="text-[10px] font-mono text-slate-400">{commit.sha}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Activity textarea */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-700" htmlFor="log-activity">
-              Detail Aktivitas / Pekerjaan
-            </label>
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-semibold text-slate-700" htmlFor="log-activity">
+                Detail Aktivitas / Pekerjaan
+              </label>
+              {githubStep === "done" && githubCommits && githubCommits.length > 0 && (
+                <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3" />
+                  Terisi dari GitHub
+                </span>
+              )}
+            </div>
             <textarea
               id="log-activity"
-              rows={4}
-              placeholder="Jelaskan apa yang Anda kerjakan hari ini secara spesifik..."
+              rows={5}
+              placeholder="Jelaskan apa yang Anda kerjakan hari ini, atau gunakan tombol Import GitHub di atas untuk mengisi otomatis..."
               value={activity}
               onChange={(e) => setActivity(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 py-2 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
+              className="w-full rounded-lg border border-slate-200 py-2 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition font-mono"
             />
           </div>
 
+          {/* Progress slider */}
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs font-semibold text-slate-700">
               <label htmlFor="log-progress">Progress Tugas Hari Ini</label>
@@ -166,7 +503,7 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsAdding(false)}
+              onClick={closeForm}
               className="border-slate-200 text-slate-600 hover:bg-slate-50 font-medium"
             >
               Batal
@@ -185,12 +522,14 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
       {/* Logbook History */}
       <section className="space-y-4">
         <h2 className="text-lg font-bold text-slate-800">Riwayat Laporan Logbook</h2>
-        
+
         {logbooks.length === 0 ? (
           <div className="bg-white/50 border border-dashed border-slate-200 rounded-2xl p-12 text-center">
             <ClipboardList className="h-10 w-10 text-slate-400 mx-auto mb-3" />
             <p className="text-slate-500 font-medium text-sm">Belum ada laporan aktivitas.</p>
-            <p className="text-xs text-slate-400 mt-1">Klik tombol di atas untuk melaporkan aktivitas pertama Anda.</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Klik tombol di atas untuk melaporkan aktivitas pertama Anda.
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -199,7 +538,6 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
                 key={log.id}
                 className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4 hover:shadow-md transition duration-200 animate-in fade-in duration-300"
               >
-                {/* Header info */}
                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <Calendar className="h-4 w-4 text-slate-400" />
@@ -239,11 +577,9 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
                   </span>
                 </div>
 
-                {/* Activity & progress */}
                 <div className="space-y-3">
                   <p className="text-slate-700 text-sm whitespace-pre-wrap">{log.activity}</p>
-                  
-                  {/* Progress bar */}
+
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs text-slate-500">
                       <span>Progress Pekerjaan</span>
@@ -258,12 +594,13 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
                   </div>
                 </div>
 
-                {/* Mentor feedback */}
                 {log.feedback && (
                   <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 flex items-start gap-2.5">
-                    <MessageSquare className="h-4.5 w-4.5 text-blue-500 shrink-0 mt-0.5" />
+                    <MessageSquare className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-0.5">Catatan Pembimbing:</p>
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-0.5">
+                        Catatan Pembimbing:
+                      </p>
                       <p className="text-xs text-slate-700 italic">&quot;{log.feedback}&quot;</p>
                     </div>
                   </div>

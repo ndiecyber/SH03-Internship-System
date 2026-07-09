@@ -18,9 +18,40 @@ export async function getProfileData() {
       email: true,
       role: true,
       createdAt: true,
-      approvalStatus: true
+      approvalStatus: true,
+      githubUsername: true,
+      accounts: {
+        where: { provider: "github" },
+        select: { providerAccountId: true }
+      }
     }
   });
+}
+
+export async function updateGithubUsernameAction(data: { githubUsername: string }) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return { error: "Tidak terautentikasi." };
+
+    const username = data.githubUsername.trim().replace(/^@/, "");
+
+    // Validate username format (alphanumeric + hyphens, max 39 chars)
+    if (username && !/^[a-zA-Z0-9-]{1,39}$/.test(username)) {
+      return { error: "Format GitHub username tidak valid." };
+    }
+
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { githubUsername: username || null }
+    });
+
+    revalidatePath("/mentor/profile");
+    revalidatePath("/intern/profile");
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating github username:", error);
+    return { error: "Gagal memperbarui GitHub username." };
+  }
 }
 
 export async function updateProfileAction(data: { name: string }) {
