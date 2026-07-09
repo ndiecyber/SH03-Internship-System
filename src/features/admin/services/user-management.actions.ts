@@ -44,15 +44,22 @@ export async function getUsersByRole(role: UserRole) {
               select: { id: true, name: true, email: true }
             }
           }
+        },
+        mentorRelations: {
+          include: {
+            intern: {
+              select: { id: true, name: true, email: true }
+            }
+          }
         }
       },
       orderBy: { createdAt: "desc" }
     });
 
-    // Flatten assignedMentor from internRelation
-    const data = users.map(({ internRelation, ...u }) => ({
+    const data = users.map(({ internRelation, mentorRelations, ...u }) => ({
       ...u,
-      assignedMentor: internRelation?.mentor ?? null
+      assignedMentor: internRelation?.mentor ?? null,
+      assignedInterns: mentorRelations.map((r) => r.intern)
     }));
 
     return { data };

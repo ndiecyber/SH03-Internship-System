@@ -32,8 +32,9 @@ interface User {
   createdAt: Date;
   approvedAt: Date | null;
   applications?: Application[];
-  // assigned mentor (optional, only for INTERN role)
   assignedMentor?: Mentor | null;
+  // for MENTOR role: list of interns they handle
+  assignedInterns?: { id: string; name: string | null; email: string }[];
 }
 
 interface UserListProps {
@@ -193,6 +194,30 @@ export function UserList({ users, roleLabel, mentors, onRefresh }: Readonly<User
                     Daftar: {formatDate(new Date(user.createdAt))}
                   </span>
                 </div>
+
+                {/* Assigned interns — only for MENTOR role */}
+                {user.role === "MENTOR" && (
+                  <div className="pt-1.5 border-t border-slate-100 mt-1">
+                    <p className="text-xs font-semibold text-slate-500 mb-1.5">
+                      Peserta yang dibimbing ({user.assignedInterns?.length ?? 0})
+                    </p>
+                    {user.assignedInterns && user.assignedInterns.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {user.assignedInterns.map((intern) => (
+                          <span
+                            key={intern.id}
+                            className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700"
+                          >
+                            <UserCheck className="h-3 w-3" />
+                            {intern.name ?? intern.email}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400">Belum ada peserta yang ditugaskan</span>
+                    )}
+                  </div>
+                )}
 
                 {/* ── Mentor assignment inline ── */}
                 {showMentorControl && (
