@@ -18,7 +18,14 @@ export async function getAdminMonitoringLogbooks() {
           select: {
             id: true,
             name: true,
-            email: true
+            email: true,
+            internRelation: {
+              select: {
+                mentor: {
+                  select: { id: true, name: true, email: true }
+                }
+              }
+            }
           }
         }
       }

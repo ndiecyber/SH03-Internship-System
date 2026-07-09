@@ -11,6 +11,9 @@ export default async function AdminDashboardPage() {
     activeInterns: 0,
     completedInterns: 0,
     totalCertificates: 0,
+    pendingApprovals: 0,
+    totalMentors: 0,
+    pendingLogbooks: 0,
     latestLogbooks: []
   };
 

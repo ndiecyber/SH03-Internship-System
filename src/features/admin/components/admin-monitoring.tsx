@@ -13,6 +13,9 @@ type MonitoringLogbook = {
   user: {
     name: string | null;
     email: string;
+    internRelation: {
+      mentor: { id: string; name: string | null; email: string };
+    } | null;
   };
 };
 
@@ -44,6 +47,7 @@ export function AdminMonitoring({ logbooks }: Readonly<AdminMonitoringProps>) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterIntern, setFilterIntern] = useState("all");
+  const [filterMentor, setFilterMentor] = useState("all");
 
   const pendingCount = logbooks.filter((log) => log.status === "pending").length;
   const approvedCount = logbooks.filter((log) => log.status === "approved").length;
@@ -56,16 +60,32 @@ export function AdminMonitoring({ logbooks }: Readonly<AdminMonitoringProps>) {
     ).entries()
   );
 
+  // Unique mentors for filter dropdown
+  const uniqueMentors = Array.from(
+    new Map(
+      logbooks
+        .filter((log) => log.user.internRelation?.mentor)
+        .map((log) => {
+          const m = log.user.internRelation!.mentor;
+          return [m.id, m.name ?? m.email] as [string, string];
+        })
+    ).entries()
+  );
+
   const filtered = logbooks.filter((log) => {
     const matchesStatus = filterStatus === "all" || log.status === filterStatus;
     const matchesIntern = filterIntern === "all" || log.user.email === filterIntern;
+    const matchesMentor =
+      filterMentor === "all" ||
+      log.user.internRelation?.mentor.id === filterMentor ||
+      (filterMentor === "unassigned" && !log.user.internRelation?.mentor);
     const q = searchQuery.toLowerCase();
     const matchesSearch =
       !q ||
       log.user.name?.toLowerCase().includes(q) ||
       log.user.email.toLowerCase().includes(q) ||
       log.activity.toLowerCase().includes(q);
-    return matchesStatus && matchesIntern && matchesSearch;
+    return matchesStatus && matchesIntern && matchesMentor && matchesSearch;
   });
 
   return (
@@ -110,6 +130,21 @@ export function AdminMonitoring({ logbooks }: Readonly<AdminMonitoringProps>) {
             <option value="all">Semua Intern</option>
             {uniqueInterns.map(([email, name]) => (
               <option key={email} value={email}>
+                {name}
+              </option>
+            ))}
+          </select>
+
+          {/* Mentor dropdown */}
+          <select
+            value={filterMentor}
+            onChange={(e) => setFilterMentor(e.target.value)}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
+          >
+            <option value="all">Semua Mentor</option>
+            <option value="unassigned">Belum ada mentor</option>
+            {uniqueMentors.map(([id, name]) => (
+              <option key={id} value={id}>
                 {name}
               </option>
             ))}
@@ -159,6 +194,7 @@ export function AdminMonitoring({ logbooks }: Readonly<AdminMonitoringProps>) {
               <thead>
                 <tr className="text-left text-slate-600">
                   <th className="px-3 py-3 font-medium">Intern</th>
+                  <th className="px-3 py-3 font-medium">Mentor</th>
                   <th className="px-3 py-3 font-medium">Tanggal</th>
                   <th className="px-3 py-3 font-medium">Progress</th>
                   <th className="px-3 py-3 font-medium">Status</th>
@@ -172,6 +208,20 @@ export function AdminMonitoring({ logbooks }: Readonly<AdminMonitoringProps>) {
                     <td className="px-3 py-3">
                       <div className="font-medium text-slate-900">{logbook.user.name ?? "Tanpa nama"}</div>
                       <div className="text-xs text-slate-500">{logbook.user.email}</div>
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap">
+                      {logbook.user.internRelation?.mentor ? (
+                        <div>
+                          <div className="text-sm font-medium text-slate-800">
+                            {logbook.user.internRelation.mentor.name ?? "—"}
+                          </div>
+                          <div className="text-xs text-slate-400">
+                            {logbook.user.internRelation.mentor.email}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400 italic">Belum ditugaskan</span>
+                      )}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-slate-600">{formatDate(logbook.date)}</td>
                     <td className="px-3 py-3 whitespace-nowrap text-slate-600">{logbook.progress}%</td>
