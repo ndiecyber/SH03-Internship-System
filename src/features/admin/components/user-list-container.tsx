@@ -60,14 +60,15 @@ export function UserListContainer({
     return () => clearInterval(interval);
   }, [role]);
 
-  const tabs = [
+  const tabs = role === "INTERN" ? [
     { id: "all", label: "Semua" },
     { id: "aktif", label: "Peserta Aktif" },
     { id: "belum", label: "Belum Daftar" },
-  ];
+  ] : [];
 
   const filteredUsers = users.filter((u) => {
     const matchesFilter =
+      role !== "INTERN" ||
       filterStatus === "all" ||
       (filterStatus === "aktif" && u.applications?.some((a) => a.status === "approved")) ||
       (filterStatus === "belum" && (!u.applications || u.applications.length === 0));
@@ -102,7 +103,8 @@ export function UserListContainer({
           />
         </div>
 
-        <div className="flex gap-2 border-b md:border-b-0 pb-2 md:pb-0 overflow-x-auto">
+        {tabs.length > 0 && (
+          <div className="flex gap-2 border-b md:border-b-0 pb-2 md:pb-0 overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -117,6 +119,7 @@ export function UserListContainer({
               </button>
             ))}
           </div>
+        )}
       </div>
 
       {/* Result count */}
