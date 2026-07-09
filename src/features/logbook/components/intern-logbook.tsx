@@ -17,9 +17,10 @@ import {
   ChevronDown,
   ChevronUp,
   BookMarked,
-  ArrowRight
+  ArrowRight,
+  Pencil
 } from "lucide-react";
-import { createLogbookAction } from "../services/logbook.actions";
+import { createLogbookAction, resubmitLogbookAction } from "../services/logbook.actions";
 import {
   fetchGithubReposAction,
   fetchGithubCommitsAction,
@@ -56,7 +57,15 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
 
   // GitHub import states
   const [githubStep, setGithubStep] = useState<GithubStep>("idle");
-  const [githubLoading, setGithubLoading] = useState(false);
+
+  // Resubmit state — holds the rejected logbook being edited
+  const [editingLog, setEditingLog]           = useState<LogbookEntry | null>(null);
+  const [editActivity, setEditActivity]       = useState("");
+  const [editProgress, setEditProgress]       = useState(50);
+  const [editDate, setEditDate]               = useState(today);
+  const [editError, setEditError]             = useState<string | null>(null);
+  const [editSuccess, setEditSuccess]         = useState(false);
+  const [isResubmitting, setIsResubmitting]   = useState(false);  const [githubLoading, setGithubLoading] = useState(false);
   const [githubError, setGithubError] = useState<string | null>(null);
   const [repos, setRepos] = useState<GithubRepo[]>([]);
   const [selectedRepo, setSelectedRepo] = useState<string>(""); // full_name e.g. "user/repo"
@@ -195,6 +204,54 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
     setProgress(50);
     setLogDate(today);
     resetGithub();
+  };
+
+  const handleOpenEdit = (log: LogbookEntry) => {
+    setEditingLog(log);
+    setEditActivity(log.activity);
+    setEditProgress(log.progress);
+    setEditDate(new Date(log.date).toISOString().split("T")[0]);
+    setEditError(null);
+    setEditSuccess(false);
+  };
+
+  const handleCloseEdit = () => {
+    setEditingLog(null);
+    setEditError(null);
+  };
+
+  const handleResubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLog) return;
+    if (!editActivity) { setEditError("Deskripsi aktivitas tidak boleh kosong."); return; }
+
+    setIsResubmitting(true);
+    setEditError(null);
+    try {
+      const res = await resubmitLogbookAction({
+        logbookId: editingLog.id,
+        activity: editActivity,
+        progress: editProgress,
+        date: editDate
+      });
+      if (res.error) {
+        setEditError(res.error);
+      } else {
+        setEditSuccess(true);
+        setLogbooks((prev) =>
+          prev.map((l) =>
+            l.id === editingLog.id
+              ? { ...l, activity: editActivity, progress: editProgress, status: "pending", feedback: null, date: new Date(editDate) }
+              : l
+          )
+        );
+        setTimeout(() => setEditingLog(null), 1500);
+      }
+    } catch {
+      setEditError("Terjadi kesalahan sistem.");
+    } finally {
+      setIsResubmitting(false);
+    }
   };
 
   return (
@@ -605,11 +662,113 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
                     </div>
                   </div>
                 )}
+
+                {log.status === "rejected" && (
+                  <div className="pt-1">
+                    <Button
+                      size="sm"
+                      onClick={() => handleOpenEdit(log)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5 text-xs"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit &amp; Kirim Ulang
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
       </section>
+
+      {/* Edit & Resubmit Modal */}
+      {editingLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-white rounded-2xl border border-slate-100 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Edit &amp; Kirim Ulang Logbook</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Perbarui isi logbook lalu kirim ulang untuk ditinjau mentor.</p>
+              </div>
+              <button onClick={handleCloseEdit} className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition">
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+
+            {editSuccess ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center space-y-3 px-6">
+                <CheckCircle className="h-14 w-14 text-emerald-500 animate-bounce" />
+                <h4 className="font-bold text-slate-800 text-lg">Logbook Berhasil Dikirim Ulang!</h4>
+                <p className="text-sm text-slate-500">Menunggu tinjauan ulang dari mentor.</p>
+              </div>
+            ) : (
+              <form onSubmit={handleResubmit} className="p-6 space-y-4">
+                <div className="rounded-lg border border-amber-100 bg-amber-50 px-4 py-2.5 text-xs text-amber-700">
+                  Status akan kembali ke <strong>Menunggu Review</strong> setelah dikirim ulang.
+                </div>
+
+                {editError && (
+                  <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-100 px-3 py-2.5 text-sm text-red-700">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{editError}</span>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700" htmlFor="edit-date">Tanggal Aktivitas</label>
+                  <input
+                    id="edit-date"
+                    type="date"
+                    value={editDate}
+                    max={today}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="w-full max-w-xs rounded-lg border border-slate-200 py-2 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700" htmlFor="edit-activity">Detail Aktivitas</label>
+                  <textarea
+                    id="edit-activity"
+                    rows={5}
+                    value={editActivity}
+                    onChange={(e) => setEditActivity(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 py-2 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition font-mono resize-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-semibold text-slate-700">
+                    <label htmlFor="edit-progress">Progress</label>
+                    <span className="text-blue-600 font-bold">{editProgress}%</span>
+                  </div>
+                  <input
+                    id="edit-progress"
+                    type="range"
+                    min="0" max="100" step="5"
+                    value={editProgress}
+                    onChange={(e) => setEditProgress(Number(e.target.value))}
+                    className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <Button type="button" variant="outline" onClick={handleCloseEdit} className="text-slate-600">
+                    Batal
+                  </Button>
+                  <Button type="submit" disabled={isResubmitting} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
+                    {isResubmitting ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Mengirim...</>
+                    ) : (
+                      "Kirim Ulang"
+                    )}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

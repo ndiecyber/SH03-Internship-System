@@ -69,6 +69,58 @@ export async function getMentorLogbooks() {
   });
 }
 
+export async function resubmitLogbookAction(formData: {
+  logbookId: string;
+  activity: string;
+  progress: number;
+  date?: string;
+}) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { error: "Anda harus login terlebih dahulu." };
+    }
+
+    if (!formData.activity) return { error: "Detail aktivitas wajib diisi." };
+    if (formData.progress < 0 || formData.progress > 100) {
+      return { error: "Progress harus berada di antara 0% dan 100%." };
+    }
+
+    // Verify the logbook belongs to this user and is rejected
+    const logbook = await prisma.logbook.findFirst({
+      where: {
+        id: formData.logbookId,
+        userId: session.user.id,
+        status: "rejected"
+      }
+    });
+
+    if (!logbook) {
+      return { error: "Logbook tidak ditemukan atau tidak dapat dikirim ulang." };
+    }
+
+    await prisma.logbook.update({
+      where: { id: formData.logbookId },
+      data: {
+        activity: formData.activity,
+        progress: formData.progress,
+        date: formData.date ? new Date(formData.date) : logbook.date,
+        status: "pending",
+        feedback: null
+      }
+    });
+
+    revalidatePath("/intern/logbook");
+    revalidatePath("/intern/progress");
+    revalidatePath("/mentor/logbook-review");
+    revalidatePath("/admin/dashboard");
+    return { success: true };
+  } catch (error) {
+    console.error("Error resubmitting logbook:", error);
+    return { error: "Gagal mengirim ulang logbook." };
+  }
+}
+
 export async function reviewLogbookAction(
   logbookId: string,
   status: "approved" | "rejected",
