@@ -66,3 +66,47 @@ export async function applyForProgramAction(formData: {
     return { error: "Gagal mengirim pendaftaran magang." };
   }
 }
+
+export async function resubmitApplicationAction(formData: {
+  applicationId: string;
+  cvUrl: string;
+  notes: string;
+}) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { error: "Anda harus login terlebih dahulu." };
+    }
+
+    if (!formData.cvUrl) return { error: "Link CV wajib diisi." };
+
+    // Verify the application belongs to the current user and is rejected
+    const application = await prisma.application.findFirst({
+      where: {
+        id: formData.applicationId,
+        userId: session.user.id,
+        status: "rejected"
+      }
+    });
+
+    if (!application) {
+      return { error: "Pendaftaran tidak ditemukan atau tidak dapat dikirim ulang." };
+    }
+
+    await prisma.application.update({
+      where: { id: formData.applicationId },
+      data: {
+        cvUrl: formData.cvUrl,
+        notes: formData.notes,
+        status: "pending"
+      }
+    });
+
+    revalidatePath("/intern/internship-registration");
+    revalidatePath("/admin/applicants");
+    return { success: true };
+  } catch (error) {
+    console.error("Error resubmitting application:", error);
+    return { error: "Gagal mengirim ulang pendaftaran." };
+  }
+}
