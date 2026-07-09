@@ -17,12 +17,20 @@ export async function getInternLogbooks() {
 export async function createLogbookAction(formData: {
   activity: string;
   progress: number;
-  date?: string; // ISO date string "YYYY-MM-DD"
+  date?: string;
 }) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return { error: "Anda harus login terlebih dahulu." };
+    }
+
+    // Intern must have an assigned mentor before writing logbook
+    const mentorAssignment = await prisma.mentorIntern.findUnique({
+      where: { internId: session.user.id }
+    });
+    if (!mentorAssignment) {
+      return { error: "Anda belum memiliki mentor. Logbook hanya bisa diisi setelah admin menugaskan mentor kepada Anda." };
     }
 
     if (!formData.activity) return { error: "Detail aktivitas wajib diisi." };
