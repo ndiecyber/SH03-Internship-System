@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { UserList } from "./user-list";
 import { getUsersByRole } from "../services/user-management.actions";
-import { Button } from "@/components/ui/button";
-import { RefreshCw, AlertCircle, Search, Users } from "lucide-react";
+import { AlertCircle, Search, Users } from "lucide-react";
 import { UserRole } from "@/types/roles";
 
 interface Application {
@@ -47,28 +46,9 @@ export function UserListContainer({
   mentors,
 }: Readonly<UserListContainerProps>) {
   const [users, setUsers] = useState<User[]>(initialData);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-
-  const handleRefresh = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const result = await getUsersByRole(role);
-      if (result.error) {
-        setError(result.error);
-      } else {
-        setUsers((result.data as User[]) || []);
-      }
-    } catch (err) {
-      console.error("Refresh error:", err);
-      setError("Gagal refresh data");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Auto-refresh every 5 seconds
   useEffect(() => {
@@ -131,8 +111,7 @@ export function UserListContainer({
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex gap-2 border-b md:border-b-0 pb-2 md:pb-0 overflow-x-auto">
+        <div className="flex gap-2 border-b md:border-b-0 pb-2 md:pb-0 overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -154,18 +133,6 @@ export function UserListContainer({
               </button>
             ))}
           </div>
-
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={isLoading}
-            className="gap-2 shrink-0"
-          >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-            {isLoading ? "Memuat..." : "Refresh"}
-          </Button>
-        </div>
       </div>
 
       {/* Result count */}
@@ -190,7 +157,7 @@ export function UserListContainer({
           users={filteredUsers}
           roleLabel={roleLabel}
           mentors={mentors}
-          onRefresh={handleRefresh}
+          onRefresh={() => {}}
         />
       )}
     </div>
