@@ -146,7 +146,13 @@ export function UserList({ users, roleLabel, mentors, onRefresh }: Readonly<User
           ? assignedMentors[user.id]
           : user.assignedMentor ?? null;
         const chosenMentorId = selectedMentor[user.id] ?? "";
-        const showMentorControl = mentors && mentors.length > 0;
+        // Only show mentor assignment for interns who are account-approved AND have an approved application (CV)
+        const hasApprovedApplication = user.applications?.some((a) => a.status === "approved");
+        const showMentorControl =
+          mentors &&
+          mentors.length > 0 &&
+          user.approvalStatus === "APPROVED" &&
+          hasApprovedApplication;
 
         return (
           <div key={user.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
