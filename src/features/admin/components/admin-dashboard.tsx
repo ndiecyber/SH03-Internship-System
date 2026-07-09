@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { getDashboardStats } from "../services/dashboard.actions";
 import {
   Users, BookOpen, CheckCircle, Award, Calendar,
-  ArrowRight, RefreshCw, AlertCircle, Clock, UserCheck,
-  ClipboardList, Bell
+  ArrowRight, RefreshCw, AlertCircle, Clock
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -82,7 +81,6 @@ export function AdminDashboard({ initialData }: Readonly<AdminDashboardProps>) {
   }, []);
 
   const stats = [
-    // --- Ikhtisar ---
     {
       label: "Total Lamaran",
       value: data.totalApplicants,
@@ -94,7 +92,7 @@ export function AdminDashboard({ initialData }: Readonly<AdminDashboardProps>) {
       alert: false
     },
     {
-      label: "Intern Aktif",
+      label: "Peserta Aktif",
       value: data.activeInterns,
       unit: "orang",
       icon: BookOpen,
@@ -104,23 +102,13 @@ export function AdminDashboard({ initialData }: Readonly<AdminDashboardProps>) {
       alert: false
     },
     {
-      label: "Intern Selesai",
+      label: "Peserta Selesai",
       value: data.completedInterns,
       unit: "orang",
       icon: CheckCircle,
       iconBg: "bg-emerald-50",
       iconColor: "text-emerald-600",
       href: "/admin/interns",
-      alert: false
-    },
-    {
-      label: "Total Mentor",
-      value: data.totalMentors,
-      unit: "mentor",
-      icon: UserCheck,
-      iconBg: "bg-violet-50",
-      iconColor: "text-violet-600",
-      href: "/admin/mentors",
       alert: false
     },
     {
@@ -132,27 +120,6 @@ export function AdminDashboard({ initialData }: Readonly<AdminDashboardProps>) {
       iconColor: "text-sky-600",
       href: "/admin/reports",
       alert: false
-    },
-    // --- Butuh tindakan ---
-    {
-      label: "Menunggu Approval",
-      value: data.pendingApprovals,
-      unit: "akun",
-      icon: Bell,
-      iconBg: "bg-orange-50",
-      iconColor: "text-orange-500",
-      href: "/admin/reports",
-      alert: data.pendingApprovals > 0
-    },
-    {
-      label: "Logbook Pending",
-      value: data.pendingLogbooks,
-      unit: "entri",
-      icon: ClipboardList,
-      iconBg: "bg-amber-50",
-      iconColor: "text-amber-500",
-      href: "/admin/monitoring",
-      alert: data.pendingLogbooks > 0
     }
   ];
 
@@ -185,29 +152,24 @@ export function AdminDashboard({ initialData }: Readonly<AdminDashboardProps>) {
         </Button>
       </div>
 
-      {/* Stat Cards — single uniform grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((item) => {
           const Icon = item.icon;
           return (
             <Link
               key={item.label}
               href={item.href}
-              className={`relative group flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
-                item.alert ? "border-orange-200 bg-orange-50/40" : "border-slate-100"
-              }`}
+              className="relative group flex flex-col gap-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
-              {item.alert && (
-                <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
-              )}
-              <div className={`w-fit rounded-lg p-2 ${item.iconBg} ${item.iconColor}`}>
-                <Icon className="h-4 w-4" />
+              <div className="flex items-center justify-between">
+                <div className={`rounded-xl p-2.5 ${item.iconBg} ${item.iconColor}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
               </div>
               <div>
-                <p className={`text-2xl font-bold tracking-tight ${item.alert ? "text-orange-600" : "text-slate-800"}`}>
-                  {item.value}
-                </p>
-                <p className="text-[11px] font-medium text-slate-500 mt-0.5 leading-tight">{item.label}</p>
+                <p className="text-3xl font-bold tracking-tight text-slate-800">{item.value}</p>
+                <p className="text-sm font-medium text-slate-500 mt-0.5">{item.label}</p>
               </div>
             </Link>
           );
