@@ -113,6 +113,15 @@ export function ApplicantManager({ initialApplications }: Readonly<ApplicantMana
         </div>
       </div>
 
+      {/* Result count */}
+      <p className="text-sm text-slate-500">
+        Menampilkan{" "}
+        <span className="font-semibold text-slate-800">{filteredApps.length}</span>{" "}
+        dari{" "}
+        <span className="font-semibold text-slate-800">{applications.length}</span>{" "}
+        pendaftar
+      </p>
+
       {/* Grid of Applicants */}
       <div className="grid grid-cols-1 gap-4">
         {filteredApps.length === 0 ? (

@@ -89,6 +89,15 @@ export function RegistrationHistory({ history }: Readonly<RegistrationHistoryPro
         </div>
       </div>
 
+      {/* Result count */}
+      <p className="text-sm text-slate-500">
+        Menampilkan{" "}
+        <span className="font-semibold text-slate-800">{filtered.length}</span>{" "}
+        dari{" "}
+        <span className="font-semibold text-slate-800">{history.length}</span>{" "}
+        riwayat registrasi
+      </p>
+
       {/* List */}
       {filtered.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
