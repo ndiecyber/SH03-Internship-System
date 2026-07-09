@@ -1,7 +1,14 @@
 "use server";
 
+import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+
+function revalidateAll() {
+  revalidatePath("/admin/internship-programs");
+  revalidatePath("/intern/internship-registration");
+  revalidatePath("/internship-information");
+}
 
 export async function getPrograms() {
   return await prisma.internshipProgram.findMany({
@@ -17,6 +24,8 @@ export async function createProgramAction(data: {
   status: string;
 }) {
   try {
+    const session = await auth();
+    if (!session?.user || session.user.role !== "ADMIN") return { error: "Unauthorized" };
     if (!data.title) return { error: "Judul program wajib diisi." };
 
     await prisma.internshipProgram.create({
@@ -28,8 +37,7 @@ export async function createProgramAction(data: {
       }
     });
 
-    revalidatePath("/admin/internship-programs");
-    revalidatePath("/intern/internship-registration");
+    revalidateAll();
     return { success: true };
   } catch (error) {
     console.error("Error creating program:", error);
@@ -42,6 +50,10 @@ export async function updateProgramAction(
   data: { title: string; description: string; period: string; status: string }
 ) {
   try {
+    const session = await auth();
+    if (!session?.user || session.user.role !== "ADMIN") return { error: "Unauthorized" };
+    if (!data.title) return { error: "Judul program wajib diisi." };
+
     await prisma.internshipProgram.update({
       where: { id },
       data: {
@@ -52,8 +64,7 @@ export async function updateProgramAction(
       }
     });
 
-    revalidatePath("/admin/internship-programs");
-    revalidatePath("/intern/internship-registration");
+    revalidateAll();
     return { success: true };
   } catch (error) {
     console.error("Error updating program:", error);
@@ -63,12 +74,12 @@ export async function updateProgramAction(
 
 export async function deleteProgramAction(id: string) {
   try {
-    await prisma.internshipProgram.delete({
-      where: { id }
-    });
+    const session = await auth();
+    if (!session?.user || session.user.role !== "ADMIN") return { error: "Unauthorized" };
 
-    revalidatePath("/admin/internship-programs");
-    revalidatePath("/intern/internship-registration");
+    await prisma.internshipProgram.delete({ where: { id } });
+
+    revalidateAll();
     return { success: true };
   } catch (error) {
     console.error("Error deleting program:", error);
