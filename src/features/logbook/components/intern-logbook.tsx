@@ -18,7 +18,9 @@ import {
   ChevronUp,
   BookMarked,
   ArrowRight,
-  Pencil
+  Pencil,
+  UserX,
+  UserCheck
 } from "lucide-react";
 import { createLogbookAction, resubmitLogbookAction } from "../services/logbook.actions";
 import {
@@ -40,12 +42,14 @@ type LogbookEntry = {
 
 type InternLogbookProps = {
   initialLogbooks: LogbookEntry[];
+  hasMentor: boolean;
+  mentorName: string | null;
 };
 
 // GitHub import steps
 type GithubStep = "idle" | "picking-repo" | "fetching-commits" | "done";
 
-export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>) {
+export function InternLogbook({ initialLogbooks, hasMentor, mentorName }: Readonly<InternLogbookProps>) {
   const [logbooks, setLogbooks] = useState<LogbookEntry[]>(initialLogbooks);
   const today = new Date().toISOString().split("T")[0];
   const [isAdding, setIsAdding] = useState(false);
@@ -267,7 +271,7 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
             Laporkan aktivitas magang harian Anda dan pantau evaluasi mentor.
           </p>
         </div>
-        {!isAdding && (
+        {!isAdding && hasMentor && (
           <Button
             onClick={openAddForm}
             className="bg-blue-600 hover:bg-blue-700 font-medium text-white flex items-center gap-2 self-start"
@@ -277,6 +281,31 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
           </Button>
         )}
       </div>
+
+      {/* Banner — belum punya mentor */}
+      {!hasMentor && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 flex items-start gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
+            <UserX className="h-5 w-5 text-amber-600" />
+          </div>
+          <div>
+            <p className="font-semibold text-amber-800 text-sm">Mentor belum ditugaskan</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              Anda belum dapat mengisi logbook. Admin perlu menugaskan mentor kepada Anda terlebih dahulu sebelum bisa melaporkan aktivitas harian.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Banner — sudah punya mentor */}
+      {hasMentor && mentorName && (
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 flex items-center gap-3">
+          <UserCheck className="h-5 w-5 text-emerald-600 shrink-0" />
+          <p className="text-sm text-emerald-700">
+            Dibimbing oleh <span className="font-semibold">{mentorName}</span> — logbook Anda akan ditinjau oleh mentor ini.
+          </p>
+        </div>
+      )}
 
       {/* Add Logbook Form Panel */}
       {isAdding && (
@@ -663,7 +692,7 @@ export function InternLogbook({ initialLogbooks }: Readonly<InternLogbookProps>)
                   </div>
                 )}
 
-                {log.status === "rejected" && (
+                {log.status === "rejected" && hasMentor && (
                   <div className="pt-1">
                     <Button
                       size="sm"
