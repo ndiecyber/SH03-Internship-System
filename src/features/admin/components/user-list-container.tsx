@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { UserList } from "./user-list";
 import { getUsersByRole } from "../services/user-management.actions";
-import { AlertCircle, Search, Users } from "lucide-react";
+import { Search, Users } from "lucide-react";
 import { UserRole } from "@/types/roles";
 
 interface Application {
@@ -47,7 +47,6 @@ export function UserListContainer({
   mentors,
 }: Readonly<UserListContainerProps>) {
   const [users, setUsers] = useState<User[]>(initialData);
-  const [error, setError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -89,14 +88,7 @@ export function UserListContainer({
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-          <p className="text-sm text-red-700">{error}</p>
-        </div>
-      )}
-
-      {/* Search & Filter — sama persis dengan applicant-manager */}
+      {/* Search & Filter */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />

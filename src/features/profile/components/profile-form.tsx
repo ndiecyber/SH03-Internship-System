@@ -4,7 +4,7 @@ import { useState } from "react";
 import { User, KeyRound, Mail, CheckCircle, AlertCircle, Shield, Github } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signIn } from "next-auth/react";
-import { updateProfileAction, changePasswordAction, changeEmailAction, updateGithubUsernameAction } from "../services/profile.actions";
+import { updateProfileAction, changePasswordAction, changeEmailAction } from "../services/profile.actions";
 
 type ProfileFormProps = {
   user: {

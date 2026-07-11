@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getDashboardStats } from "../services/dashboard.actions";
 import {
-  Users, BookOpen, CheckCircle, Award,
+  Users, BookOpen, Award,
   ArrowRight, RefreshCw, AlertCircle, TrendingUp,
   Clock, FileText, UserCheck, LayoutGrid
 } from "lucide-react";
@@ -11,7 +11,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend
+  ResponsiveContainer, PieChart, Pie, Cell
 } from "recharts";
 
 /* ─── Types ─────────────────────────────────────── */
@@ -128,7 +128,6 @@ export function AdminDashboard({ initialData }: Readonly<{ initialData: Dashboar
   const [data, setData] = useState<DashboardData>(initialData);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [chartFilter, setChartFilter] = useState<"7d" | "30d">("7d");
 
   const handleRefresh = async () => {
     setIsLoading(true);
@@ -363,7 +362,7 @@ export function AdminDashboard({ initialData }: Readonly<{ initialData: Dashboar
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(value: number, name: string) => [value, name]}
+                        formatter={(value, name) => [value, name]}
                         contentStyle={{ borderRadius: "12px", border: "1px solid #f1f5f9", fontSize: 12 }}
                       />
                     </PieChart>
