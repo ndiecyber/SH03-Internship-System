@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { auth, signOut } from "@/auth";
 import { LogOut } from "lucide-react";
 
@@ -18,9 +19,19 @@ export async function TopNavbar() {
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b bg-white/95 px-6 backdrop-blur lg:px-8 shadow-sm">
-      <Link className="flex items-center gap-2 lg:hidden" href="/">
-        <span className="h-6 w-6 rounded bg-blue-600 flex items-center justify-center font-bold text-white text-xs">A</span>
-        <span className="text-sm font-bold tracking-wider text-slate-800">LEXA</span>
+      <Link className="flex items-center gap-3 lg:hidden" href="/">
+        <Image
+          src="/logo-lexa.png"
+          alt="LEXA Technology"
+          width={90}
+          height={30}
+          priority
+          className="object-contain"
+        />
+        <div className="flex flex-col">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-600 leading-tight">INTERNSHIP</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-600 leading-tight">MANAGEMENT SYSTEM</span>
+        </div>
       </Link>
       
       <div className="ml-auto flex items-center gap-4">
