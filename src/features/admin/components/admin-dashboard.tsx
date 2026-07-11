@@ -89,8 +89,8 @@ function StatCard({ label, value, icon, iconBg, href }: Readonly<StatCardProps>)
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="text-2xl font-extrabold text-slate-800 leading-none">{value}</p>
         <p className="mt-0.5 text-sm font-semibold text-slate-500">{label}</p>
+        <p className="text-2xl font-extrabold text-slate-800 leading-none">{value}</p>
       </div>
     </Link>
   );
