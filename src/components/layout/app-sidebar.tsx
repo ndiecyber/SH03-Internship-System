@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { auth } from "@/auth";
 import { roleNavigation } from "@/lib/navigation/role-navigation";
 import { LayoutDashboard, Users, FileText, Settings, Award, GraduationCap, ClipboardList } from "lucide-react";
@@ -35,13 +36,25 @@ export async function AppSidebar() {
   return (
     <aside className="fixed inset-y-0 left-0 hidden w-72 flex-col border-r border-slate-800 bg-[#0f172a] text-slate-200 lg:flex">
       {/* Logo Header */}
-      <div className="flex h-16 items-center border-b border-slate-800 px-6">
-        <Link className="flex items-center gap-2" href="/">
-          <span className="h-6 w-6 rounded bg-blue-600 flex items-center justify-center font-bold text-white text-xs">A</span>
-          <span className="text-lg font-bold tracking-wider bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-            LEXA
-          </span>
+      <div className="flex flex-col items-start justify-center border-b border-slate-800 px-5 py-4 gap-1">
+        <Link href="/" className="flex items-center">
+          <Image
+            src="/logo-lexa.png"
+            alt="LEXA Technology"
+            width={130}
+            height={44}
+            priority
+            className="object-contain"
+          />
         </Link>
+        <div className="flex flex-col items-start mt-2.5">
+          <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-slate-300 leading-tight">
+            INTERNSHIP
+          </p>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-slate-300 leading-tight">
+            MANAGEMENT SYSTEM
+          </p>
+        </div>
       </div>
 
       {/* Navigation */}
