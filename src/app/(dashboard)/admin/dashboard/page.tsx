@@ -6,15 +6,18 @@ export const metadata = createPageMetadata("Admin Dashboard");
 
 export default async function AdminDashboardPage() {
   const result = await getDashboardStats();
-  const dashboardData = result.data || {
+  const dashboardData = result.data ?? {
     totalApplicants: 0,
+    totalInterns: 0,
     activeInterns: 0,
     completedInterns: 0,
     totalCertificates: 0,
     pendingApprovals: 0,
     totalMentors: 0,
     pendingLogbooks: 0,
-    latestLogbooks: []
+    latestApplications: [],
+    internChartData: [],
+    programPieData: []
   };
 
   return <AdminDashboard initialData={dashboardData} />;

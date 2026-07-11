@@ -3,61 +3,132 @@
 import { useEffect, useState } from "react";
 import { getDashboardStats } from "../services/dashboard.actions";
 import {
-  Users, BookOpen, CheckCircle, Award, Calendar,
-  ArrowRight, RefreshCw, AlertCircle, Clock
+  Users, BookOpen, CheckCircle, Award,
+  ArrowRight, RefreshCw, AlertCircle, TrendingUp,
+  Clock, FileText, UserCheck, LayoutGrid
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { formatDate } from "@/utils/format-date";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, PieChart, Pie, Cell, Legend
+} from "recharts";
 
-interface Logbook {
+/* ─── Types ─────────────────────────────────────── */
+interface Application {
   id: string;
-  activity: string;
-  date: Date;
-  progress: number;
   status: string;
-  user: { id: string; name: string | null };
+  createdAt: Date;
+  cvUrl: string | null;
+  user: { id: string; name: string | null; email: string };
+  program: { title: string };
+}
+
+interface ChartPoint {
+  date: string;
+  onGoing: number;
+  completed: number;
+}
+
+interface PiePoint {
+  name: string;
+  value: number;
 }
 
 interface DashboardData {
   totalApplicants: number;
+  totalInterns: number;
   activeInterns: number;
   completedInterns: number;
   totalCertificates: number;
   pendingApprovals: number;
   totalMentors: number;
   pendingLogbooks: number;
-  latestLogbooks: Logbook[];
+  latestApplications: Application[];
+  internChartData: ChartPoint[];
+  programPieData: PiePoint[];
 }
 
-interface AdminDashboardProps {
-  initialData: DashboardData;
-}
+/* ─── Helpers ────────────────────────────────────── */
 
-function LogbookStatusBadge({ status }: { status: string }) {
-  if (status === "approved")
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-        <CheckCircle className="h-2.5 w-2.5" /> Disetujui
-      </span>
-    );
-  if (status === "rejected")
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">
-        <AlertCircle className="h-2.5 w-2.5" /> Ditolak
-      </span>
-    );
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  approved: { label: "Accepted",  className: "bg-emerald-100 text-emerald-700" },
+  rejected: { label: "Rejected",  className: "bg-red-100 text-red-700" },
+  pending:  { label: "Pending",   className: "bg-amber-100 text-amber-700" },
+};
+
+function StatusBadge({ status }: { status: string }) {
+  const cfg = STATUS_CONFIG[status] ?? { label: status, className: "bg-slate-100 text-slate-600" };
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-      <Clock className="h-2.5 w-2.5" /> Menunggu
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${cfg.className}`}>
+      {cfg.label}
     </span>
   );
 }
 
-export function AdminDashboard({ initialData }: Readonly<AdminDashboardProps>) {
+function formatDate(d: Date) {
+  return new Date(d).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/* ─── Stat Card ──────────────────────────────────── */
+interface StatCardProps {
+  label: string;
+  value: number;
+  sub: string;
+  icon: React.ReactNode;
+  iconBg: string;
+  href: string;
+  trend?: number;
+}
+
+function StatCard({ label, value, sub, icon, iconBg, href, trend }: Readonly<StatCardProps>) {
+  return (
+    <Link
+      href={href}
+      className="group relative flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+    >
+      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-2xl font-extrabold text-slate-800 leading-none">{value}</p>
+        <p className="mt-0.5 text-sm font-semibold text-slate-500">{label}</p>
+        <div className="mt-1 flex items-center gap-1.5">
+          {trend !== undefined && (
+            <span className={`text-xs font-bold ${trend >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+              {trend >= 0 ? "+" : ""}{trend}%
+            </span>
+          )}
+          <span className="text-xs text-slate-400">{sub}</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+/* ─── Custom Tooltip Recharts ─────────────────────── */
+function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-lg text-sm">
+      <p className="mb-1.5 font-bold text-slate-700">{label}</p>
+      {payload.map((p) => (
+        <div key={p.name} className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full shrink-0" style={{ background: p.color }} />
+          <span className="text-slate-500">{p.name}:</span>
+          <span className="font-bold text-slate-800">{p.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Main Component ─────────────────────────────── */
+export function AdminDashboard({ initialData }: Readonly<{ initialData: DashboardData }>) {
   const [data, setData] = useState<DashboardData>(initialData);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [chartFilter, setChartFilter] = useState<"7d" | "30d">("7d");
 
   const handleRefresh = async () => {
     setIsLoading(true);
@@ -65,7 +136,7 @@ export function AdminDashboard({ initialData }: Readonly<AdminDashboardProps>) {
     try {
       const result = await getDashboardStats();
       if (result.error) setError(result.error);
-      else if (result.data) setData(result.data);
+      else if (result.data) setData(result.data as DashboardData);
     } catch {
       setError("Gagal refresh data");
     } finally {
@@ -75,189 +146,423 @@ export function AdminDashboard({ initialData }: Readonly<AdminDashboardProps>) {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      getDashboardStats().then((r) => { if (r.data) setData(r.data); });
+      getDashboardStats().then((r) => {
+        if (r.data) setData(r.data as DashboardData);
+      });
     }, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  const stats = [
-    {
-      label: "Total Lamaran",
-      value: data.totalApplicants,
-      unit: "lamaran",
-      icon: Users,
-      iconBg: "bg-blue-50",
-      iconColor: "text-blue-600",
-      href: "/admin/applicants",
-      alert: false
-    },
-    {
-      label: "Peserta Aktif",
-      value: data.activeInterns,
-      unit: "orang",
-      icon: BookOpen,
-      iconBg: "bg-indigo-50",
-      iconColor: "text-indigo-600",
-      href: "/admin/interns",
-      alert: false
-    },
-    {
-      label: "Peserta Selesai",
-      value: data.completedInterns,
-      unit: "orang",
-      icon: CheckCircle,
-      iconBg: "bg-emerald-50",
-      iconColor: "text-emerald-600",
-      href: "/admin/interns",
-      alert: false
-    },
-    {
-      label: "Sertifikat",
-      value: data.totalCertificates,
-      unit: "diterbitkan",
-      icon: Award,
-      iconBg: "bg-sky-50",
-      iconColor: "text-sky-600",
-      href: "/admin/reports",
-      alert: false
-    }
-  ];
+  const today = new Date();
+  const dateStr = today.toLocaleDateString("id-ID", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric"
+  });
 
-  const quickActions = [
-    { label: "Approval Registrasi",    desc: "Setujui/tolak akun baru",         href: "/admin/applicants",           badge: data.pendingApprovals > 0 ? data.pendingApprovals : null },
-    { label: "Seleksi Berkas",         desc: "Tinjau CV dan lamaran intern",     href: "/admin/applicants",           badge: null },
-    { label: "Tugaskan Mentor",        desc: "Assign mentor ke peserta magang",  href: "/admin/interns",              badge: null },
-    { label: "Kelola Program Magang",  desc: "Tambah atau tutup posisi magang",  href: "/admin/internship-programs",  badge: null },
-    { label: "Monitoring Logbook",     desc: "Pantau aktivitas harian peserta",  href: "/admin/monitoring",           badge: data.pendingLogbooks > 0 ? data.pendingLogbooks : null }
+  /* ── Stats ── */
+  const stats: StatCardProps[] = [
+    {
+      label: "Total Interns",
+      value: data.completedInterns + data.activeInterns ,    
+      icon: <Users className="h-6 w-6 text-blue-600" />,
+      iconBg: "bg-blue-50",
+      href: "/admin/interns"
+    },
+    {
+      label: "Active Programs",
+      value: data.programPieData.find((p) => p.name === "On Going")?.value ?? 0,  
+      icon: <LayoutGrid className="h-6 w-6 text-indigo-600" />,
+      iconBg: "bg-indigo-50",
+      href: "/admin/internship-programs"
+    },
+    {
+      label: "On Going Interns",
+      value: data.activeInterns,
+      icon: <TrendingUp className="h-6 w-6 text-emerald-600" />,
+      iconBg: "bg-emerald-50",
+      href: "/admin/interns"
+    },
+    {
+      label: "Completed",
+      value: data.completedInterns,
+      icon: <Award className="h-6 w-6 text-amber-600" />,
+      iconBg: "bg-amber-50",
+      href: "/admin/interns"
+    }
   ];
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
+      {/* ── Error ── */}
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
           <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
           <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      {/* ── Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Dashboard Admin</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Ikhtisar sistem magang LEXA hari ini.</p>
+          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">
+            Welcome back, Admin LEXA! 👋
+          </h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {`Here's what's happening with your internship programs today.`}
+          </p>
         </div>
-        <Button size="sm" variant="outline" onClick={handleRefresh} disabled={isLoading} className="gap-2">
-          <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-          {isLoading ? "Memuat..." : "Refresh"}
-        </Button>
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="hidden sm:flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm">
+            <Clock className="h-4 w-4 text-slate-400" />
+            {dateStr}
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={isLoading}
+            className="gap-2 shadow-sm"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            {isLoading ? "Loading..." : "Refresh"}
+          </Button>
+        </div>
       </div>
 
-      {/* Stat Cards */}
+      {/* ── Stat Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.label}
-              href={item.href}
-              className="relative group flex flex-col gap-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div className="flex items-center justify-between">
-                <div className={`rounded-xl p-2.5 ${item.iconBg} ${item.iconColor}`}>
-                  <Icon className="h-5 w-5" />
-                </div>
-              </div>
-              <div>
-                <p className="text-3xl font-bold tracking-tight text-slate-800">{item.value}</p>
-                <p className="text-sm font-medium text-slate-500 mt-0.5">{item.label}</p>
-              </div>
-            </Link>
-          );
-        })}
+        {stats.map((s) => (
+          <StatCard key={s.label} {...s} />
+        ))}
       </div>
 
-      {/* Bottom — Logbook feed + Quick Actions */}
+      {/* ── Charts Row ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Logbook Feed */}
-        <div className="lg:col-span-2 rounded-2xl border border-slate-100 bg-white shadow-sm">
+        {/* Area Chart — Interns Overview */}
+        <div className="lg:col-span-2 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-slate-800">Interns Overview</h2>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-500">
+                20 June – 20 October 2026
+              </span>
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div className="mb-4 flex items-center gap-4 text-xs font-semibold">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+              On Going
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+              Completed
+            </span>
+          </div>
+
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart
+              data={data.internChartData}
+              margin={{ top: 5, right: 10, left: -20, bottom: 0 }}
+            >
+              <defs>
+                <linearGradient id="colorOnGoing" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 11, fill: "#94a3b8" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: "#94a3b8" }}
+                axisLine={false}
+                tickLine={false}
+                allowDecimals={false}
+              />
+              <Tooltip content={<ChartTooltip />} />
+              <Area
+                type="monotone"
+                dataKey="onGoing"
+                name="On Going"
+                stroke="#3b82f6"
+                strokeWidth={2.5}
+                fill="url(#colorOnGoing)"
+                dot={{ r: 3, fill: "#3b82f6", strokeWidth: 0 }}
+                activeDot={{ r: 5, fill: "#3b82f6" }}
+              />
+              <Area
+                type="monotone"
+                dataKey="completed"
+                name="Completed"
+                stroke="#10b981"
+                strokeWidth={2.5}
+                fill="url(#colorCompleted)"
+                dot={{ r: 3, fill: "#10b981", strokeWidth: 0 }}
+                activeDot={{ r: 5, fill: "#10b981" }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Pie Chart — Interns On Going vs Completed */}
+        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm flex flex-col">
+          <div className="mb-4">
+            <h2 className="text-base font-bold text-slate-800">Program Status</h2>
+          </div>
+
+          {(() => {
+            const activePrograms = data.programPieData.find((p) => p.name === "On Going")?.value ?? 0;
+            const onGoingInterns  = data.activeInterns;
+            const completedInterns = data.completedInterns;
+
+            const pieData = [
+              { name: "On Going",          value: onGoingInterns,   color: "#3b82f6" },
+              { name: "Completed", value: completedInterns, color: "#10b981"},
+            ].filter((d) => d.value > 0);
+
+            const total = pieData.reduce((s, p) => s + p.value, 0);
+
+            if (total === 0) {
+              return (
+                <div className="flex flex-1 items-center justify-center text-sm text-slate-400">
+                  Belum ada data intern
+                </div>
+              );
+            }
+
+            return (
+              <>
+                {/* Donut + center label menggunakan overlay HTML */}
+                <div className="relative flex items-center justify-center" style={{ height: 190 }}>
+                  <ResponsiveContainer width="100%" height={190}>
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={56}
+                        outerRadius={84}
+                        paddingAngle={3}
+                        dataKey="value"
+                        startAngle={90}
+                        endAngle={-270}
+                      >
+                        {pieData.map((entry) => (
+                          <Cell key={entry.name} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: number, name: string) => [value, name]}
+                        contentStyle={{ borderRadius: "12px", border: "1px solid #f1f5f9", fontSize: 12 }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+
+                  {/* Center label — overlay absolut di tengah donut */}
+                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-3xl font-extrabold text-slate-800 leading-none">
+                      {activePrograms}
+                    </span>
+                    <span className="text-[11px] font-semibold tracking-widest text-slate-400">
+                      Programs
+                    </span>                   
+                  </div>
+                </div>
+
+                {/* Legend */}
+                <div className="mt-3 space-y-2">
+                  {pieData.map((entry) => (
+                    <div key={entry.name} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full shrink-0"
+                          style={{ background: entry.color }}
+                        />
+                        <span className="text-xs font-medium text-slate-600">{entry.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-slate-800">{entry.value}</span>
+                        <span className="text-xs text-slate-400">
+                          {Math.round((entry.value / total) * 100)}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      </div>
+
+      {/* ── Bottom Row: Recent Applications + Quick Stats ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Recent Applications Table */}
+        <div className="lg:col-span-2 rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
             <div>
-              <h2 className="text-base font-semibold text-slate-800">Logbook Terbaru</h2>
-              <p className="text-xs text-slate-400 mt-0.5">5 entri terbaru dari peserta magang.</p>
+              <h2 className="text-base font-bold text-slate-800">Recent Applications</h2>
+              <p className="text-xs text-slate-400 mt-0.5">5 pendaftaran terbaru masuk</p>
             </div>
-            <Link href="/admin/monitoring" className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline transition">
-              Lihat Semua <ArrowRight className="h-3 w-3" />
+            <Link
+              href="/admin/applicants"
+              className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 transition"
+            >
+              View All <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
 
-          <div className="divide-y divide-slate-50">
-            {data.latestLogbooks.length === 0 ? (
-              <div className="px-6 py-10 text-center text-sm text-slate-400">
-                Belum ada aktivitas logbook terdaftar.
-              </div>
-            ) : (
-              data.latestLogbooks.map((log) => (
-                <div key={log.id} className="flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50/60 transition">
-                  {/* Avatar */}
-                  <div className="h-8 w-8 shrink-0 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
-                    {log.user.name?.[0]?.toUpperCase() ?? "I"}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-slate-800">{log.user.name ?? "—"}</span>
-                      <LogbookStatusBadge status={log.status} />
-                    </div>
-                    <p className="text-xs text-slate-400 truncate mt-0.5">{log.activity}</p>
-                  </div>
-
-                  {/* Right — date + progress */}
-                  <div className="shrink-0 text-right space-y-1 min-w-[80px]">
-                    <div className="flex items-center justify-end gap-1 text-[10px] text-slate-400">
-                      <Calendar className="h-3 w-3" />
-                      {formatDate(new Date(log.date))}
-                    </div>
-                    <div className="flex items-center justify-end gap-1.5">
-                      <div className="w-16 bg-slate-200 rounded-full h-1 overflow-hidden">
-                        <div className="bg-blue-500 h-1 rounded-full" style={{ width: `${log.progress}%` }} />
-                      </div>
-                      <span className="text-[10px] font-semibold text-slate-600">{log.progress}%</span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          {data.latestApplications.length === 0 ? (
+            <div className="px-6 py-10 text-center text-sm text-slate-400">
+              Belum ada pendaftaran masuk.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-50 bg-slate-50/60">
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      Program
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      Applied Date
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {data.latestApplications.map((app) => (
+                    <tr key={app.id} className="hover:bg-slate-50/60 transition">
+                      {/* Name */}
+                      <td className="px-6 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0">
+                            {app.user.name?.[0]?.toUpperCase() ?? "?"}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-800 truncate max-w-[130px]">
+                              {app.user.name ?? "—"}
+                            </p>
+                            <p className="text-xs text-slate-400 truncate max-w-[130px]">
+                              {app.user.email}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      {/* Program */}
+                      <td className="px-4 py-3.5">
+                        <p className="font-medium text-slate-700 truncate max-w-[160px] text-xs">
+                          {app.program.title}
+                        </p>
+                      </td>
+                      {/* Date */}
+                      <td className="px-4 py-3.5 text-xs text-slate-500 whitespace-nowrap">
+                        {formatDate(app.createdAt)}
+                      </td>
+                      {/* Status */}
+                      <td className="px-4 py-3.5">
+                        <StatusBadge status={app.status} />
+                      </td>
+                      {/* Action */}
+                      <td className="px-4 py-3.5">
+                        <Link
+                          href="/admin/applicants"
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition"
+                        >
+                          Review
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        {/* Quick Actions */}
-        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm">
-          <div className="px-6 py-4 border-b border-slate-100">
-            <h2 className="text-base font-semibold text-slate-800">Aksi Cepat</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Navigasi ke halaman yang sering digunakan.</p>
+        {/* Right Column: Quick Stats + Quick Links */}
+        <div className="flex flex-col gap-4">
+          {/* Quick Stats */}
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-3">
+            <h2 className="text-base font-bold text-slate-800">Quick Stats</h2>
+            <div className="divide-y divide-slate-50">
+              {[
+                { icon: <FileText className="h-4 w-4 text-amber-500" />, label: "Pending Approvals", value: data.pendingApprovals, href: "/admin/reports", color: "text-amber-600" },
+                { icon: <Clock className="h-4 w-4 text-blue-500" />, label: "Logbook Pending", value: data.pendingLogbooks, href: "/admin/monitoring", color: "text-blue-600" },
+                { icon: <UserCheck className="h-4 w-4 text-indigo-500" />, label: "Total Mentors", value: data.totalMentors, href: "/admin/mentors", color: "text-indigo-600" },
+                { icon: <Award className="h-4 w-4 text-emerald-500" />, label: "Certificates Issued", value: data.totalCertificates, href: "/admin/interns", color: "text-emerald-600" },
+              ].map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="group flex items-center justify-between py-2.5 hover:opacity-80 transition"
+                >
+                  <div className="flex items-center gap-2.5">
+                    {item.icon}
+                    <span className="text-sm text-slate-600 group-hover:text-slate-800 transition">{item.label}</span>
+                  </div>
+                  <span className={`text-sm font-bold ${item.color}`}>{item.value}</span>
+                </Link>
+              ))}
+            </div>
           </div>
-          <div className="divide-y divide-slate-50">
-            {quickActions.map((action) => (
-              <Link
-                key={action.label}
-                href={action.href}
-                className="group flex items-center justify-between px-6 py-3.5 hover:bg-slate-50/60 transition"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-slate-700 group-hover:text-blue-600 transition">{action.label}</p>
-                  <p className="text-xs text-slate-400">{action.desc}</p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {action.badge !== null && (
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1.5 text-[10px] font-bold text-white">
-                      {action.badge}
-                    </span>
-                  )}
-                  <ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-blue-400 transition" />
-                </div>
-              </Link>
-            ))}
+
+          {/* Quick Links */}
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+            <h2 className="text-base font-bold text-slate-800 mb-3">Quick Links</h2>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: "Add Intern",   href: "/admin/reports",             icon: <Users className="h-5 w-5 text-blue-600" />,    bg: "bg-blue-50"   },
+                { label: "Create Program", href: "/admin/internship-programs", icon: <LayoutGrid className="h-5 w-5 text-indigo-600" />, bg: "bg-indigo-50" },
+                { label: "Add Mentor",   href: "/admin/mentors",             icon: <UserCheck className="h-5 w-5 text-emerald-600" />, bg: "bg-emerald-50" },
+                { label: "Generate Report", href: "/admin/monitoring",        icon: <FileText className="h-5 w-5 text-amber-600" />,  bg: "bg-amber-50"  },
+              ].map((ql) => (
+                <Link
+                  key={ql.label}
+                  href={ql.href}
+                  className="flex flex-col items-center gap-2 rounded-xl border border-slate-100 p-3 text-center hover:shadow-sm hover:border-slate-200 transition"
+                >
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${ql.bg}`}>
+                    {ql.icon}
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-600 leading-tight">{ql.label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Help Card */}
+          <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50 p-5 shadow-sm">
+            <BookOpen className="h-8 w-8 text-blue-500 mb-2" />
+            <p className="text-sm font-bold text-blue-800">Need help?</p>
+            <p className="text-xs text-blue-600 mt-0.5 mb-3">
+              Check our documentation or contact support team.
+            </p>
+            <Link
+              href="/admin/settings"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition"
+            >
+              Go to Help Center <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
         </div>
       </div>
