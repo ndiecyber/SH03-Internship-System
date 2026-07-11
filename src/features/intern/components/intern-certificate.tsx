@@ -75,7 +75,6 @@ export function InternCertificate({ certificate }: Readonly<InternCertificatePro
 
       // Scale image to fill A4 landscape while keeping aspect ratio
       const canvasAspect = canvas.width / canvas.height;
-      const pageAspect = pdfWidth / pdfHeight;
 
       let imgW = pdfWidth;
       let imgH = pdfWidth / canvasAspect;

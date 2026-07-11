@@ -193,13 +193,8 @@ export async function fetchGithubCommitsAction(
 
     if (events.length === 0) {
       // Fallback to Events API
-      const url = accessToken
-        ? `https://api.github.com/users/${username}/events?per_page=100` // Authenticated user events might fail if username is "me", so need actual username if available, but /users/{username} works if we know it. We'll use /user/events. But we need their username for public.
-        // Wait, if accessToken is present but we don't have username, we could use /events, but for simplicity:
-        : `https://api.github.com/users/${username}/events?per_page=100`;
-
       const response = await fetch(
-        accessToken ? `https://api.github.com/users/${username}/events?per_page=100` : `https://api.github.com/users/${username}/events?per_page=100`,
+        `https://api.github.com/users/${username}/events?per_page=100`,
         { headers, next: { revalidate: 0 } }
       );
 
