@@ -88,13 +88,22 @@ export async function getDashboardStats() {
     ]);
 
     // Chart: intern on going vs completed per minggu — periode 20 Jun s/d 20 Okt 2026
-    // Setiap titik = 1 minggu, label = tanggal mulai minggu tsb
-    // On Going  = aplikasi yang diapprove dalam minggu itu
-    // Completed = sertifikat yang diterbitkan dalam minggu itu
+    // 2 bulk query saja, proses di memory — hindari N×2 query yang timeout di Vercel
     const PERIOD_START = new Date("2026-06-20T00:00:00.000Z");
     const PERIOD_END   = new Date("2026-10-20T23:59:59.999Z");
 
-    // Buat array awal setiap minggu dari PERIOD_START sampai PERIOD_END
+    const [chartApplications, chartCertificates] = await Promise.all([
+      prisma.application.findMany({
+        where: { status: "approved", updatedAt: { gte: PERIOD_START, lte: PERIOD_END } },
+        select: { updatedAt: true }
+      }),
+      prisma.certificate.findMany({
+        where: { issuedAt: { gte: PERIOD_START, lte: PERIOD_END } },
+        select: { issuedAt: true }
+      })
+    ]);
+
+    // Buat array awal setiap minggu
     const weekStarts: Date[] = [];
     const cursor = new Date(PERIOD_START);
     while (cursor <= PERIOD_END) {
@@ -102,37 +111,29 @@ export async function getDashboardStats() {
       cursor.setDate(cursor.getDate() + 7);
     }
 
-    const internChartData = await Promise.all(
-      weekStarts.map(async (weekStart) => {
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekEnd.getDate() + 6);
-        weekEnd.setHours(23, 59, 59, 999);
+    // Proses di memory — tidak ada DB call di dalam loop
+    const internChartData = weekStarts.map((weekStart) => {
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+      const end = weekEnd > PERIOD_END ? PERIOD_END : weekEnd;
 
-        // Jangan melewati PERIOD_END
-        const end = weekEnd > PERIOD_END ? PERIOD_END : weekEnd;
+      const onGoing = chartApplications.filter(
+        (a) => a.updatedAt >= weekStart && a.updatedAt <= end
+      ).length;
 
-        const [onGoing, completed] = await Promise.all([
-          prisma.application.count({
-            where: {
-              status: "approved",
-              updatedAt: { gte: weekStart, lte: end }
-            }
-          }),
-          prisma.certificate.count({
-            where: { issuedAt: { gte: weekStart, lte: end } }
-          })
-        ]);
+      const completed = chartCertificates.filter(
+        (c) => c.issuedAt >= weekStart && c.issuedAt <= end
+      ).length;
 
-        // Label: "20 Jun", "27 Jun", "4 Jul", dst.
-        const label = weekStart.toLocaleDateString("id-ID", {
-          day: "numeric",
-          month: "short",
-          timeZone: "Asia/Jakarta"
-        });
+      const label = weekStart.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        timeZone: "Asia/Jakarta"
+      });
 
-        return { date: label, onGoing, completed };
-      })
-    );
+      return { date: label, onGoing, completed };
+    });
 
     // Program status pie data
     const programPieData = programStatusCounts.map((p) => ({
