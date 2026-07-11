@@ -74,14 +74,12 @@ function formatDate(d: Date) {
 interface StatCardProps {
   label: string;
   value: number;
-  sub: string;
   icon: React.ReactNode;
   iconBg: string;
   href: string;
-  trend?: number;
 }
 
-function StatCard({ label, value, sub, icon, iconBg, href, trend }: Readonly<StatCardProps>) {
+function StatCard({ label, value, icon, iconBg, href }: Readonly<StatCardProps>) {
   return (
     <Link
       href={href}
@@ -93,14 +91,6 @@ function StatCard({ label, value, sub, icon, iconBg, href, trend }: Readonly<Sta
       <div className="min-w-0">
         <p className="text-2xl font-extrabold text-slate-800 leading-none">{value}</p>
         <p className="mt-0.5 text-sm font-semibold text-slate-500">{label}</p>
-        <div className="mt-1 flex items-center gap-1.5">
-          {trend !== undefined && (
-            <span className={`text-xs font-bold ${trend >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-              {trend >= 0 ? "+" : ""}{trend}%
-            </span>
-          )}
-          <span className="text-xs text-slate-400">{sub}</span>
-        </div>
       </div>
     </Link>
   );
