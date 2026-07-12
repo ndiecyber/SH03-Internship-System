@@ -3,6 +3,7 @@ import Image from "next/image";
 import { auth } from "@/auth";
 import { roleNavigation } from "@/lib/navigation/role-navigation";
 import { SidebarNav } from "./sidebar-nav";
+import { SidebarUserMenu } from "./sidebar-user-menu";
 
 export async function AppSidebar() {
   const session = await auth();
@@ -45,22 +46,12 @@ export async function AppSidebar() {
       {/* Navigation — hanya pass plain objects */}
       <SidebarNav items={menuItems} />
 
-      {/* Footer — user info */}
-      <div className="border-t border-slate-800 px-3 py-3 bg-slate-950/40">
-        <div className="flex items-center gap-2.5">
-          <div className="h-7 w-7 shrink-0 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center font-semibold text-blue-400 text-xs">
-            {session?.user?.name?.[0]?.toUpperCase() || "U"}
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs font-medium truncate text-white">
-              {session?.user?.name || "User"}
-            </p>
-            <p className="text-[10px] text-slate-500 truncate uppercase tracking-wider">
-              {userRole}
-            </p>
-          </div>
-        </div>
-      </div>
+      {/* Footer — user menu dengan dropup logout */}
+      <SidebarUserMenu
+        name={session?.user?.name || "User"}
+        role={userRole}
+        initial={session?.user?.name?.[0]?.toUpperCase() || "U"}
+      />
     </aside>
   );
 }
