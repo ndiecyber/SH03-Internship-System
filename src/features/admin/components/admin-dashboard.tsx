@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { getDashboardStats } from "../services/dashboard.actions";
 import {
   Users, BookOpen, Award,
-  ArrowRight, RefreshCw, AlertCircle, TrendingUp,
+  ArrowRight, RefreshCw, AlertCircle,
   Clock, FileText, UserCheck, LayoutGrid
 } from "lucide-react";
 import Link from "next/link";
@@ -85,7 +85,7 @@ function StatCard({ label, value, icon, iconBg, href }: Readonly<StatCardProps>)
       href={href}
       className="group relative flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
     >
-      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
+      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${iconBg}`}>
         {icon}
       </div>
       <div className="min-w-0">
@@ -152,29 +152,29 @@ export function AdminDashboard({ initialData }: Readonly<{ initialData: Dashboar
     {
       label: "Total Interns",
       value: data.completedInterns + data.activeInterns ,    
-      icon: <Users className="h-6 w-6 text-blue-600" />,
-      iconBg: "bg-blue-50",
+      icon: <Users className="h-6 w-6 text-white" />,
+      iconBg: "bg-blue-500",
       href: "/admin/interns"
     },
     {
       label: "Active Programs",
       value: data.programPieData.find((p) => p.name === "On Going")?.value ?? 0,  
-      icon: <LayoutGrid className="h-6 w-6 text-indigo-600" />,
-      iconBg: "bg-indigo-50",
+      icon: <FileText className="h-6 w-6 text-white" />,
+      iconBg: "bg-indigo-900",
       href: "/admin/internship-programs"
     },
     {
       label: "On Going Interns",
       value: data.activeInterns,
-      icon: <TrendingUp className="h-6 w-6 text-emerald-600" />,
-      iconBg: "bg-emerald-50",
+      icon: <UserCheck className="h-6 w-6 text-white" />,
+      iconBg: "bg-green-600",
       href: "/admin/interns"
     },
     {
       label: "Completed",
       value: data.completedInterns,
-      icon: <Award className="h-6 w-6 text-amber-600" />,
-      iconBg: "bg-amber-50",
+      icon: <Award className="h-6 w-6 text-white" />,
+      iconBg: "bg-purple-500",
       href: "/admin/interns"
     }
   ];
