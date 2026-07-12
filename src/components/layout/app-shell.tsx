@@ -6,7 +6,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <div className="min-h-screen bg-muted/30">
       <AppSidebar />
-      <div className="min-h-screen lg:pl-72">
+      <div className="min-h-screen lg:pl-48">
         <TopNavbar />
         <main className="px-6 py-6 lg:px-8">{children}</main>
       </div>
