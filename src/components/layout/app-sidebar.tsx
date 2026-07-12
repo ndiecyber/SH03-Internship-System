@@ -18,7 +18,7 @@ export async function AppSidebar() {
   return (
     <aside className="fixed inset-y-0 left-0 hidden w-48 flex-col border-r border-slate-800 bg-[#0f172a] text-slate-200 lg:flex z-30">
 
-      {/* Logo + Label */}
+      {/* Logo */}
       <div className="flex flex-col items-start border-b border-slate-800 px-4 py-3 gap-1">
         <Link href="/" className="flex items-center">
           <Image
@@ -30,7 +30,10 @@ export async function AppSidebar() {
             className="object-contain"
           />
         </Link>
-        <div className="flex flex-col items-start mt-2">
+      </div>
+
+      {/* Label */}
+      <div className="flex flex-col items-start mt-4 px-4">
           <p className="text-white text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 leading-tight">
             INTERNSHIP
           </p>
@@ -38,7 +41,6 @@ export async function AppSidebar() {
             MANAGEMENT SYSTEM
           </p>
         </div>
-      </div>
 
       {/* Navigation — hanya pass plain objects */}
       <SidebarNav items={menuItems} />
