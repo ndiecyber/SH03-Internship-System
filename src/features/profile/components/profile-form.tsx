@@ -5,6 +5,7 @@ import { User, KeyRound, Mail, CheckCircle, AlertCircle, Shield, Github } from "
 import { Button } from "@/components/ui/button";
 import { signIn } from "next-auth/react";
 import { updateProfileAction, changePasswordAction, changeEmailAction } from "../services/profile.actions";
+import { useRouter } from "next/navigation";
 
 type ProfileFormProps = {
   user: {
@@ -20,6 +21,8 @@ type ProfileFormProps = {
 };
 
 export function ProfileForm({ user }: Readonly<ProfileFormProps>) {
+  const router = useRouter();
+
   // Edit name state
   const [name, setName] = useState(user.name ?? "");
   const [nameLoading, setNameLoading] = useState(false);
@@ -60,16 +63,21 @@ export function ProfileForm({ user }: Readonly<ProfileFormProps>) {
     setNameError(null);
     setNameSuccess(false);
 
-    const res = await updateProfileAction({ name });
+    try {
+      const res = await updateProfileAction({ name });
 
-    if (res.error) {
-      setNameError(res.error);
-    } else {
-      setNameSuccess(true);
-      setTimeout(() => setNameSuccess(false), 3000);
+      if (res.error) {
+        setNameError(res.error);
+      } else {
+        setNameSuccess(true);
+        router.refresh();
+        setTimeout(() => setNameSuccess(false), 3000);
+      }
+    } catch (err) {
+      setNameError("Terjadi kesalahan jaringan atau server.");
+    } finally {
+      setNameLoading(false);
     }
-
-    setNameLoading(false);
   };
 
   const handleChangeEmail = async (e: React.FormEvent) => {
@@ -78,19 +86,24 @@ export function ProfileForm({ user }: Readonly<ProfileFormProps>) {
     setEmailError(null);
     setEmailSuccess(false);
 
-    const res = await changeEmailAction({ newEmail, currentPassword: emailPassword });
+    try {
+      const res = await changeEmailAction({ newEmail, currentPassword: emailPassword });
 
-    if (res.error) {
-      setEmailError(res.error);
-    } else {
-      setEmailSuccess(true);
-      setCurrentEmail(newEmail);
-      setNewEmail("");
-      setEmailPassword("");
-      setTimeout(() => setEmailSuccess(false), 4000);
+      if (res.error) {
+        setEmailError(res.error);
+      } else {
+        setEmailSuccess(true);
+        setCurrentEmail(newEmail);
+        setNewEmail("");
+        setEmailPassword("");
+        router.refresh();
+        setTimeout(() => setEmailSuccess(false), 4000);
+      }
+    } catch (err) {
+      setEmailError("Terjadi kesalahan jaringan atau server.");
+    } finally {
+      setEmailLoading(false);
     }
-
-    setEmailLoading(false);
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -99,24 +112,32 @@ export function ProfileForm({ user }: Readonly<ProfileFormProps>) {
     setPwError(null);
     setPwSuccess(false);
 
-    const res = await changePasswordAction({ currentPassword, newPassword, confirmPassword });
+    try {
+      const res = await changePasswordAction({ currentPassword, newPassword, confirmPassword });
 
-    if (res.error) {
-      setPwError(res.error);
-    } else {
-      setPwSuccess(true);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setTimeout(() => setPwSuccess(false), 4000);
+      if (res.error) {
+        setPwError(res.error);
+      } else {
+        setPwSuccess(true);
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setTimeout(() => setPwSuccess(false), 4000);
+      }
+    } catch (err) {
+      setPwError("Terjadi kesalahan jaringan atau server.");
+    } finally {
+      setPwLoading(false);
     }
-
-    setPwLoading(false);
   };
 
-  const handleConnectGithub = () => {
+  const handleConnectGithub = async () => {
     setGithubLoading(true);
-    signIn("github", { callbackUrl: window.location.href });
+    try {
+      await signIn("github", { callbackUrl: window.location.href });
+    } catch (err) {
+      setGithubLoading(false);
+    }
   };
 
   return (

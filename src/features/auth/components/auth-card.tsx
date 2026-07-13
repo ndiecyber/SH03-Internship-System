@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, registerSchema } from "../schemas/auth.schema";
 import { registerAction } from "../services/auth.actions";
-import { signIn, getSession } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Loader2, KeyRound, Mail, User as UserIcon, UserCheck, ShieldAlert } from "lucide-react";
 
@@ -52,18 +52,9 @@ export function AuthCard({ mode }: Readonly<AuthCardProps>) {
           setError("Email atau password yang Anda masukkan salah.");
           setIsLoading(false);
         } else {
-          // Get the logged in session to inspect the user's role and redirect
-          const session = await getSession();
-          const role = session?.user?.role;
-          
-          if (role === "ADMIN") {
-            router.push("/admin/dashboard");
-          } else if (role === "MENTOR") {
-            router.push("/mentor/dashboard");
-          } else {
-            router.push("/intern/dashboard");
-          }
-          router.refresh();
+          // Redirect ke halaman khusus yang membaca session di server dan redirect sesuai role
+          // Ini menghindari getSession() round-trip tambahan dari client
+          router.push("/dashboard-redirect");
         }
       } else {
         const response = await registerAction(data);

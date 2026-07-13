@@ -135,25 +135,30 @@ export function InternLogbook({ initialLogbooks, hasMentor, mentorName }: Readon
     setGithubError(null);
     setGithubStep("fetching-commits");
 
-    const result = await fetchGithubCommitsAction(dateToFetch, repoToFetch);
+    try {
+      const result = await fetchGithubCommitsAction(dateToFetch, repoToFetch);
 
-    if (result.error) {
-      setGithubError(result.error);
-      setGithubStep("picking-repo");
-    } else {
-      setGithubCommits(result.commits ?? []);
-      setGithubStep("done");
+      if (result.error) {
+        setGithubError(result.error);
+        setGithubStep("picking-repo");
+      } else {
+        setGithubCommits(result.commits ?? []);
+        setGithubStep("done");
 
-      // Auto-fill textarea if commits found
-      if (result.commits && result.commits.length > 0) {
-        const lines = result.commits.map(
-          (c) => `[${c.timestamp}] ${c.repo.split("/")[1] ?? c.repo}: ${c.message}`
-        );
-        setActivity(lines.join("\n"));
+        // Auto-fill textarea if commits found
+        if (result.commits && result.commits.length > 0) {
+          const lines = result.commits.map(
+            (c) => `[${c.timestamp}] ${c.repo.split("/")[1] ?? c.repo}: ${c.message}`
+          );
+          setActivity(lines.join("\n"));
+        }
       }
+    } catch (err) {
+      setGithubError("Terjadi kesalahan jaringan atau server saat mengambil commit.");
+      setGithubStep("picking-repo");
+    } finally {
+      setGithubLoading(false);
     }
-
-    setGithubLoading(false);
   };
 
   // Step 1: Fetch repo list
@@ -163,28 +168,33 @@ export function InternLogbook({ initialLogbooks, hasMentor, mentorName }: Readon
     setGithubCommits(null);
     setSelectedRepo("");
 
-    const result = await fetchGithubReposAction();
+    try {
+      const result = await fetchGithubReposAction();
 
-    if (result.error) {
-      setGithubError(result.error);
-      setGithubStep("idle");
-    } else {
-      const fetchedRepos = result.repos ?? [];
-      setRepos(fetchedRepos);
-      setGithubUsername(result.username ?? null);
-
-      // Auto-select previously chosen repository if it still exists
-      const lastRepo = localStorage.getItem("internship-system-last-repo");
-      if (lastRepo && fetchedRepos.some((r) => r.name === lastRepo)) {
-        setSelectedRepo(lastRepo);
-        // Automatically fetch commits immediately
-        await handleFetchCommits(lastRepo, logDate);
+      if (result.error) {
+        setGithubError(result.error);
+        setGithubStep("idle");
       } else {
-        setGithubStep("picking-repo");
-      }
-    }
+        const fetchedRepos = result.repos ?? [];
+        setRepos(fetchedRepos);
+        setGithubUsername(result.username ?? null);
 
-    setGithubLoading(false);
+        // Auto-select previously chosen repository if it still exists
+        const lastRepo = localStorage.getItem("internship-system-last-repo");
+        if (lastRepo && fetchedRepos.some((r) => r.name === lastRepo)) {
+          setSelectedRepo(lastRepo);
+          // Automatically fetch commits immediately
+          await handleFetchCommits(lastRepo, logDate);
+        } else {
+          setGithubStep("picking-repo");
+        }
+      }
+    } catch (err) {
+      setGithubError("Terjadi kesalahan jaringan atau server saat mengambil repositori.");
+      setGithubStep("idle");
+    } finally {
+      setGithubLoading(false);
+    }
   };
 
 

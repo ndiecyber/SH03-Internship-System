@@ -10,7 +10,7 @@ export async function TopNavbar() {
   const userName = session?.user?.name || "User";
   const userRole = session?.user?.role || "INTERN";
 
-  // Fetch notification counts — sequential to respect Vercel connection_limit=1
+  // Fetch notification counts — run in parallel for speed
   let notifCount = 0;
   const notifItems: {
     id: string;
@@ -23,12 +23,12 @@ export async function TopNavbar() {
   try {
     if (session?.user?.id) {
       if (userRole === "ADMIN") {
-        const pendingApprovals = await prisma.user.count({
-          where: { approvalStatus: "PENDING", role: { in: ["INTERN", "MENTOR"] } }
-        });
-        const pendingLogbooks = await prisma.logbook.count({
-          where: { status: "pending" }
-        });
+        const [pendingApprovals, pendingLogbooks] = await Promise.all([
+          prisma.user.count({
+            where: { approvalStatus: "PENDING", role: { in: ["INTERN", "MENTOR"] } }
+          }),
+          prisma.logbook.count({ where: { status: "pending" } })
+        ]);
         notifCount = pendingApprovals + pendingLogbooks;
         if (pendingApprovals > 0) notifItems.push({
           id: "approvals",

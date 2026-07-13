@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import {
   LayoutDashboard, Users, FileText, Settings,
-  Award, GraduationCap, ClipboardList
+  Award, GraduationCap, ClipboardList, Loader2
 } from "lucide-react";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -33,24 +34,45 @@ interface NavItem {
 
 export function SidebarNav({ items }: Readonly<{ items: NavItem[] }>) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+  const handleNav = (href: string) => {
+    if (href === pathname) return;
+    setPendingHref(href);
+    startTransition(() => {
+      router.push(href);
+    });
+  };
 
   return (
     <nav className="flex-1 flex flex-col gap-0.5 px-3 py-4 overflow-y-auto">
       {items.map((item) => {
         const Icon = iconMap[item.label] || ClipboardList;
         const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+        const isLoading = isPending && pendingHref === item.href;
 
         return (
           <Link
             key={item.href}
             href={item.href}
+            prefetch={true}
+            onClick={(e) => {
+              e.preventDefault();
+              handleNav(item.href);
+            }}
             className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition duration-200 ${
               isActive
                 ? "bg-blue-600 text-white shadow-sm"
                 : "text-slate-400 hover:bg-slate-800/60 hover:text-white"
             }`}
           >
-            <Icon className="h-4 w-4 shrink-0" />
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+            ) : (
+              <Icon className="h-4 w-4 shrink-0" />
+            )}
             <span className="truncate">{item.label}</span>
           </Link>
         );

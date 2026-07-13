@@ -63,15 +63,13 @@ export async function getMentorLogbooks() {
   const session = await auth();
   if (!session?.user?.id) return [];
 
-  // Find all interns assigned to this mentor
-  const assignments = await prisma.mentorIntern.findMany({
-    where: { mentorId: session.user.id }
-  });
-
-  const internIds = assignments.map((a) => a.internId);
-
+  // Single query: filter logbooks by mentor through relation — no extra round-trip
   return await prisma.logbook.findMany({
-    where: { userId: { in: internIds } },
+    where: {
+      user: {
+        internRelation: { mentorId: session.user.id }
+      }
+    },
     include: { user: true },
     orderBy: { date: "desc" }
   });
