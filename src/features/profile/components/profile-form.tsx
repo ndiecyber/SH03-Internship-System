@@ -73,7 +73,7 @@ export function ProfileForm({ user }: Readonly<ProfileFormProps>) {
         router.refresh();
         setTimeout(() => setNameSuccess(false), 3000);
       }
-    } catch (err) {
+    } catch {
       setNameError("Terjadi kesalahan jaringan atau server.");
     } finally {
       setNameLoading(false);
@@ -99,7 +99,7 @@ export function ProfileForm({ user }: Readonly<ProfileFormProps>) {
         router.refresh();
         setTimeout(() => setEmailSuccess(false), 4000);
       }
-    } catch (err) {
+    } catch {
       setEmailError("Terjadi kesalahan jaringan atau server.");
     } finally {
       setEmailLoading(false);
@@ -124,7 +124,7 @@ export function ProfileForm({ user }: Readonly<ProfileFormProps>) {
         setConfirmPassword("");
         setTimeout(() => setPwSuccess(false), 4000);
       }
-    } catch (err) {
+    } catch {
       setPwError("Terjadi kesalahan jaringan atau server.");
     } finally {
       setPwLoading(false);
@@ -135,7 +135,7 @@ export function ProfileForm({ user }: Readonly<ProfileFormProps>) {
     setGithubLoading(true);
     try {
       await signIn("github", { callbackUrl: window.location.href });
-    } catch (err) {
+    } catch {
       setGithubLoading(false);
     }
   };

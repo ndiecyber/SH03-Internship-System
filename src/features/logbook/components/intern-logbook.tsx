@@ -153,7 +153,7 @@ export function InternLogbook({ initialLogbooks, hasMentor, mentorName }: Readon
           setActivity(lines.join("\n"));
         }
       }
-    } catch (err) {
+    } catch {
       setGithubError("Terjadi kesalahan jaringan atau server saat mengambil commit.");
       setGithubStep("picking-repo");
     } finally {
@@ -189,7 +189,7 @@ export function InternLogbook({ initialLogbooks, hasMentor, mentorName }: Readon
           setGithubStep("picking-repo");
         }
       }
-    } catch (err) {
+    } catch {
       setGithubError("Terjadi kesalahan jaringan atau server saat mengambil repositori.");
       setGithubStep("idle");
     } finally {

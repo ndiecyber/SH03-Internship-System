@@ -16,7 +16,7 @@ async function main() {
   console.log("Seeding users...");
   const hashedPassword = hashPassword("password123");
 
-  const admin = await prisma.user.create({
+  await prisma.user.create({
     data: {
       name: "Admin Lexa",
       email: "admin@lexa.com",

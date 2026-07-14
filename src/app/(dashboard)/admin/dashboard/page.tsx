@@ -1,7 +1,10 @@
 import { createPageMetadata } from "@/utils/create-page-metadata";
 import { getDashboardStats } from "@/features/admin/services/dashboard.actions";
-import { AdminDashboard } from "@/features/admin/components/admin-dashboard";
+import dynamic from "next/dynamic";
 
+const AdminDashboard = dynamic(
+  () => import("@/features/admin/components/admin-dashboard").then((mod) => mod.AdminDashboard)
+);
 export const metadata = createPageMetadata("Admin Dashboard");
 
 export default async function AdminDashboardPage() {
