@@ -103,16 +103,19 @@ export async function submitEvaluationAction(formData: {
       }
     });
 
-    // Auto generate Certificate
-    const certCount = await prisma.certificate.count();
-    const seq = String(certCount + 1).padStart(4, "0");
-    const certNumber = `LEXA-INT-2026-0401-${seq}`;
-    await prisma.certificate.create({
-      data: {
-        userId: internId,
-        certNumber
-      }
+    // Auto generate Certificate — cek existing dulu agar tidak crash P2002 saat re-submit
+    const existingCert = await prisma.certificate.findUnique({
+      where: { userId: internId }
     });
+
+    if (!existingCert) {
+      const certCount = await prisma.certificate.count();
+      const seq = String(certCount + 1).padStart(4, "0");
+      const certNumber = `LEXA-INT-2026-0401-${seq}`;
+      await prisma.certificate.create({
+        data: { userId: internId, certNumber }
+      });
+    }
 
     revalidatePath("/mentor/evaluation");
     revalidatePath("/intern/certificate");
