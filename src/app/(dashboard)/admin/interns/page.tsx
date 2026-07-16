@@ -8,10 +8,8 @@ import {
 export const metadata = createPageMetadata("Interns");
 
 export default async function InternsPage() {
-  const [internResult, mentorResult] = await Promise.all([
-    getUsersByRole("INTERN"),
-    getUsersByRole("MENTOR")
-  ]);
+  const internResult = await getUsersByRole("INTERN");
+  const mentorResult = await getUsersByRole("MENTOR");
 
   const users = (internResult.data || []) as Parameters<typeof UserListContainer>[0]["initialData"];
   const mentors = (mentorResult.data || [])

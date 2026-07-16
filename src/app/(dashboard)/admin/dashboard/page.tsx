@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 const AdminDashboard = dynamic(
   () => import("@/features/admin/components/admin-dashboard").then((mod) => mod.AdminDashboard)
 );
+
 export const metadata = createPageMetadata("Admin Dashboard");
 
 export default async function AdminDashboardPage() {

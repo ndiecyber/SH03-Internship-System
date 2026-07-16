@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { getDashboardStats } from "../services/dashboard.actions";
 import {
-  Users, BookOpen, Award, ArrowRight, RefreshCw,
-  AlertCircle, Clock, FileText, UserCheck, LayoutGrid
+  Users, UserPlus, Award, ArrowRight,
+  AlertCircle, Clock, FileText, UserCheck,
+  Calendar, Square, FilePlus, BarChart3
 } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell
@@ -91,22 +91,14 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 /* ─── Main Component ─────────────────────────── */
 export function AdminDashboard({ initialData }: Readonly<{ initialData: DashboardData }>) {
   const [data, setData] = useState<DashboardData>(initialData);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const handleRefresh = async () => {
-    setIsLoading(true); setError(null);
-    try {
-      const result = await getDashboardStats();
-      if (result.error) setError(result.error);
-      else if (result.data) setData(result.data as DashboardData);
-    } catch { setError("Failed to refresh data"); }
-    finally { setIsLoading(false); }
-  };
 
   useEffect(() => {
     const interval = setInterval(() => {
-      getDashboardStats().then((r) => { if (r.data) setData(r.data as DashboardData); });
+      getDashboardStats().then((r) => {
+        if ("error" in r && r.error) setError(r.error);
+        else if ("data" in r && r.data) setData(r.data as DashboardData);
+      });
     }, 5000);
     return () => clearInterval(interval);
   }, []);
@@ -142,22 +134,17 @@ export function AdminDashboard({ initialData }: Readonly<{ initialData: Dashboar
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h1 className="text-lg font-extrabold text-slate-800 tracking-tight">Welcome back, Admin LEXA! 👋</h1>
+          <h1 className="text-lg font-extrabold text-slate-800 tracking-tight">Welcome back, Admin LEXA!</h1>
           <p className="text-xs text-slate-500">Here&apos;s what&apos;s happening with your internship programs today.</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="hidden sm:flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm">
-            <Clock className="h-3 w-3 text-slate-400" />{dateStr}
-          </div>
-          <Button size="sm" variant="outline" onClick={handleRefresh} disabled={isLoading} className="gap-1.5 h-7 text-xs px-2.5">
-            <RefreshCw className={`h-3 w-3 ${isLoading ? "animate-spin" : ""}`} />
-            {isLoading ? "Loading..." : "Refresh"}
-          </Button>
-        </div>
+        <span className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 shrink-0">
+          <Calendar className="h-3.5 w-3.5 text-slate-400" />
+          {dateStr}
+        </span>
       </div>
 
       {/* ── Main 2-column: LEFT content + RIGHT side panel ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_220px] gap-3 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_260px] gap-3 items-start">
 
         {/* ── LEFT ── */}
         <div className="space-y-3 min-w-0">
@@ -180,7 +167,7 @@ export function AdminDashboard({ initialData }: Readonly<{ initialData: Dashboar
                 <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-blue-500" />On Going</span>
                 <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-400" />Completed</span>
               </div>
-              <ResponsiveContainer width="100%" height={175}>
+              <ResponsiveContainer width="100%" height={155}>
                 <AreaChart data={data.internChartData} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorOnGoing" x1="0" y1="0" x2="0" y2="1">
@@ -296,56 +283,125 @@ export function AdminDashboard({ initialData }: Readonly<{ initialData: Dashboar
         {/* ── RIGHT side panel ── */}
         <div className="flex flex-col gap-3">
 
-          {/* Quick Stats */}
+          {/* Upcoming Schedule */}
           <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-            <h2 className="text-sm font-bold text-slate-800 mb-2">Quick Stats</h2>
-            <div className="divide-y divide-slate-50">
+            <div className="flex items-center justify-between mb-2.5">
+              <h2 className="text-sm font-bold text-slate-800">Upcoming Schedule</h2>
+              <Link href="/admin/reports" className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 transition">View Calendar</Link>
+            </div>
+            <div className="space-y-2.5">
               {[
-                { icon: <FileText className="h-3.5 w-3.5 text-amber-500" />,  label: "Pending Approvals", value: data.pendingApprovals, href: "/admin/reports",     color: "text-amber-600"  },
-                { icon: <Clock className="h-3.5 w-3.5 text-blue-500" />,      label: "Logbook Pending",   value: data.pendingLogbooks,  href: "/admin/monitoring",   color: "text-blue-600"   },
-                { icon: <UserCheck className="h-3.5 w-3.5 text-indigo-500" />,label: "Total Mentors",     value: data.totalMentors,     href: "/admin/mentors",      color: "text-indigo-600" },
-                { icon: <Award className="h-3.5 w-3.5 text-emerald-500" />,   label: "Certificates",      value: data.totalCertificates,href: "/admin/interns",      color: "text-emerald-600"},
-              ].map((item) => (
-                <Link key={item.label} href={item.href} className="group flex items-center justify-between py-2 hover:opacity-80 transition">
-                  <div className="flex items-center gap-2">{item.icon}<span className="text-[11px] text-slate-600">{item.label}</span></div>
-                  <span className={`text-xs font-bold ${item.color}`}>{item.value}</span>
-                </Link>
+                { day: "26", month: "JUN", title: "Opening Ceremony", sub: "Batch 4", time: "10.00 - 11.00 WIB", type: "Online" },
+                { day: "01", month: "JUN", title: "Onboarding Session", sub: "Batch 4", time: "09.00 - 11.00 WIB", type: "Online" },
+                { day: "05", month: "JUN", title: "Mentor Meeting", sub: "All Program", time: "10.00 - 11.00 WIB", type: "Online" },
+              ].map((ev) => (
+                <div key={ev.day + ev.title} className="flex items-start gap-2.5">
+                  {/* Tanggal */}
+                  <div className="flex flex-col items-center justify-center shrink-0 w-8">
+                    <span className="text-sm font-extrabold text-slate-800 leading-none">{ev.day}</span>
+                    <span className="text-[9px] font-bold text-blue-600 uppercase">{ev.month}</span>
+                  </div>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-semibold text-slate-800 leading-tight">{ev.title}</p>
+                    <p className="text-[10px] text-slate-400">{ev.sub}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <Clock className="h-2.5 w-2.5 text-slate-400 shrink-0" />
+                      <span className="text-[9px] text-slate-400">{ev.time}</span>
+                      <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[8px] font-bold text-blue-600">{ev.type}</span>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Tasks & To Do */}
           <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-            <h2 className="text-sm font-bold text-slate-800 mb-2">Quick Links</h2>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="flex items-center justify-between mb-2.5">
+              <h2 className="text-sm font-bold text-slate-800">Tasks & To Do</h2>
+              <Link href="/admin/reports" className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 transition">View All</Link>
+            </div>
+            <div className="space-y-2">
               {[
-                { label: "Add Intern",     href: "/admin/reports",             icon: <Users className="h-4 w-4 text-blue-600" />,         bg: "bg-blue-50"    },
-                { label: "New Program",    href: "/admin/internship-programs", icon: <LayoutGrid className="h-4 w-4 text-indigo-600" />,   bg: "bg-indigo-50"  },
-                { label: "Add Mentor",     href: "/admin/mentors",             icon: <UserCheck className="h-4 w-4 text-emerald-600" />,   bg: "bg-emerald-50" },
-                { label: "Reports",        href: "/admin/monitoring",          icon: <FileText className="h-4 w-4 text-amber-600" />,      bg: "bg-amber-50"   },
+                { task: "Review new applications", count: data.pendingApprovals, due: null, done: false },
+                { task: "Review logbooks this week", count: data.pendingLogbooks, due: null, done: false },
+                { task: "Mentor set up with Batch 2", count: null, due: "Tomorrow", done: false },
+                { task: "Evaluate intern progress", count: null, due: null, done: false },
+                { task: "Prepare closing report", count: null, due: "In 3 days", done: false },
+              ].map((t) => (
+                <div key={t.task} className="flex items-center gap-2">
+                  <Square className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                  <span className="flex-1 text-[11px] text-slate-600 leading-tight">{t.task}</span>
+                  {t.count !== null && t.count > 0 && (
+                    <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[9px] font-bold text-blue-600">{t.count}</span>
+                  )}
+                  {t.due && (
+                    <span className={`text-[9px] font-semibold ${t.due === "Tomorrow" ? "text-amber-500" : "text-slate-400"}`}>{t.due}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Links — 4 horizontal */}
+          {/* Quick Links — 4 icon horizontal tanpa card */}
+          <div className="rounded-xl border border-slate-100 bg-white px-3 py-3 shadow-sm">
+            <h2 className="text-sm font-bold text-slate-800 mb-2.5">Quick Links</h2>
+            <div className="flex items-start justify-between gap-1">
+              {[
+                { label: "Add Intern",      href: "/admin/reports",             icon: <UserPlus className="h-4 w-4 text-blue-500" />,    bg: "bg-blue-100"    },
+                { label: "Create Program",  href: "/admin/internship-programs", icon: <FilePlus className="h-4 w-4 text-indigo-500" />,  bg: "bg-indigo-100"  },
+                { label: "Add Mentor",      href: "/admin/mentors",             icon: <UserCheck className="h-4 w-4 text-emerald-500" />,bg: "bg-emerald-100" },
+                { label: "Generate Report", href: "/admin/monitoring",          icon: <BarChart3 className="h-4 w-4 text-amber-500" />,  bg: "bg-amber-100"   },
               ].map((ql) => (
-                <Link key={ql.label} href={ql.href} className="flex flex-col items-center gap-1.5 rounded-lg border border-slate-100 p-2 text-center hover:shadow-sm hover:border-slate-200 transition">
-                  <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${ql.bg}`}>{ql.icon}</div>
-                  <span className="text-[10px] font-semibold text-slate-600 leading-tight">{ql.label}</span>
+                <Link key={ql.label} href={ql.href} className="flex flex-col items-center gap-1.5 flex-1 text-center hover:opacity-80 transition">
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-full ${ql.bg}`}>{ql.icon}</div>
+                  <span className="text-[9px] font-semibold text-slate-500 leading-tight">{ql.label}</span>
                 </Link>
               ))}
             </div>
           </div>
 
           {/* Help Card */}
-          <div className="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50 p-3 shadow-sm">
-            <BookOpen className="h-6 w-6 text-blue-500 mb-1.5" />
-            <p className="text-xs font-bold text-blue-800">Need help?</p>
-            <p className="text-[10px] text-blue-600 mt-0.5 mb-2">Check our documentation or contact support.</p>
-            <Link href="/admin/settings" className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-blue-700 transition">
-              Help Center <ArrowRight className="h-2.5 w-2.5" />
-            </Link>
+          <div className="rounded-xl overflow-hidden shadow-sm" style={{ background: "linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%)" }}>
+            <div className="flex items-end justify-between px-3 pt-3 pb-0 gap-1">
+              {/* Text + Button */}
+              <div className="pb-3 flex-1 min-w-0">
+                <p className="text-[11px] font-bold text-slate-800 leading-tight">Need help?</p>
+                <p className="text-[10px] text-slate-500 mt-0.5 mb-2 leading-relaxed">
+                  Check our documentation or<br />contact support team.
+                </p>
+                <Link
+                  href="/admin/settings"
+                  className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1 text-[10px] font-bold text-blue-600 shadow-sm hover:bg-blue-50 transition"
+                >
+                  Go to Help Center <ArrowRight className="h-2.5 w-2.5" />
+                </Link>
+              </div>
+              {/* Ilustrasi */}
+              <div className="shrink-0 self-end">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/help-illustration.png"
+                  alt="Help"
+                  className="h-16 w-auto object-contain"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              </div>
+            </div>
           </div>
 
         </div>
         {/* ── END RIGHT ── */}
 
       </div>
+
+      {/* Footer */}
+      <p className="text-center text-[11px] pt-2" style={{ color: "#94A3B8" }}>
+        © 2026 LEXA Software House. All rights reserved.
+      </p>
+
     </div>
   );
 }

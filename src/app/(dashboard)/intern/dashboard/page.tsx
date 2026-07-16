@@ -11,28 +11,19 @@ export default async function InternDashboardPage() {
   const userName = session?.user?.name || "Intern";
   const userId = session?.user?.id;
 
-  // Fetch all data in parallel for maximum speed
-  const [totalLogs, approvedLogs, application, hasCertificate, logbooks, mentorAssignment] =
-    userId
-      ? await Promise.all([
-          prisma.logbook.count({ where: { userId } }),
-          prisma.logbook.count({ where: { userId, status: "approved" } }),
-          prisma.application.findFirst({
-            where: { userId, status: "approved" },
-            include: { program: true }
-          }),
-          prisma.certificate.findUnique({ where: { userId } }),
-          prisma.logbook.findMany({
-            where: { userId },
-            take: 3,
-            orderBy: { date: "desc" }
-          }),
-          prisma.mentorIntern.findUnique({
-            where: { internId: userId },
-            include: { mentor: { select: { id: true, name: true, email: true } } }
-          })
-        ])
-      : [0, 0, null, null, [], null];
+  const totalLogs = userId ? await prisma.logbook.count({ where: { userId } }) : 0;
+  const approvedLogs = userId ? await prisma.logbook.count({ where: { userId, status: "approved" } }) : 0;
+  const application = userId ? await prisma.application.findFirst({
+    where: { userId, status: "approved" }, include: { program: true }
+  }) : null;
+  const hasCertificate = userId ? await prisma.certificate.findUnique({ where: { userId } }) : null;
+  const logbooks = userId ? await prisma.logbook.findMany({
+    where: { userId }, take: 3, orderBy: { date: "desc" }
+  }) : [];
+  const mentorAssignment = userId ? await prisma.mentorIntern.findUnique({
+    where: { internId: userId },
+    include: { mentor: { select: { id: true, name: true, email: true } } }
+  }) : null;
 
   const averageProgress =
     (logbooks as { progress: number }[]).length > 0

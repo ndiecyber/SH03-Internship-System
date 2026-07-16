@@ -10,10 +10,8 @@ import {
 export const metadata = createPageMetadata("Reports");
 
 export default async function ReportsPage() {
-  const [pendingResult, historyResult] = await Promise.all([
-    getPendingRegistrations(),
-    getRegistrationHistory()
-  ]);
+  const pendingResult = await getPendingRegistrations();
+  const historyResult = await getRegistrationHistory();
 
   const pendingUsers = pendingResult.data || [];
   const historyUsers = "data" in historyResult ? historyResult.data ?? [] : [];

@@ -6,10 +6,8 @@ import type { ComponentProps } from "react";
 export const metadata = createPageMetadata("Internship Registration");
 
 export default async function InternshipRegistrationPage() {
-  const [programs, applications] = await Promise.all([
-    getPublishedPrograms(),
-    getInternApplications()
-  ]);
+  const programs = await getPublishedPrograms();
+  const applications = await getInternApplications();
 
   return (
     <InternRegistration

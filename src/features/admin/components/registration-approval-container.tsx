@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { RegistrationApprovalList } from "./registration-approval-list";
 import { getPendingRegistrations } from "../services/registration-approval.actions";
-import { Button } from "@/components/ui/button";
-import { RefreshCw, AlertCircle } from "lucide-react";
 
 interface PendingUser {
   id: string;
@@ -20,26 +18,6 @@ interface RegistrationApprovalContainerProps {
 
 export function RegistrationApprovalContainer({ initialData }: Readonly<RegistrationApprovalContainerProps>) {
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>(initialData);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleRefresh = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const result = await getPendingRegistrations();
-      if (result.error) {
-        setError(result.error);
-      } else {
-        setPendingUsers(result.data || []);
-      }
-    } catch (err) {
-      console.error("Refresh error:", err);
-      setError("Gagal refresh data");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Auto-refresh every 5 seconds when there are pending registrations
   useEffect(() => {
@@ -47,41 +25,30 @@ export function RegistrationApprovalContainer({ initialData }: Readonly<Registra
 
     const interval = setInterval(() => {
       getPendingRegistrations().then((result) => {
-        if (result.data) {
-          setPendingUsers(result.data);
-        }
+        if (result.data) setPendingUsers(result.data);
       });
-    }, 5000); // Refresh every 5 seconds
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [pendingUsers.length]);
 
+  const handleRefreshed = (updated: PendingUser[]) => {
+    setPendingUsers(updated);
+  };
+
   return (
     <div className="space-y-4">
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-          <p className="text-sm text-red-700">{error}</p>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500">
-          <span className="font-semibold text-slate-800">{pendingUsers.length}</span> registrasi menunggu persetujuan
-        </p>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleRefresh}
-          disabled={isLoading}
-          className="gap-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-          {isLoading ? "Memuat..." : "Refresh"}
-        </Button>
-      </div>
-
-      <RegistrationApprovalList pendingUsers={pendingUsers} onRefresh={handleRefresh} />
+      <p className="text-sm text-slate-500">
+        <span className="font-semibold text-slate-800">{pendingUsers.length}</span> registrasi menunggu persetujuan
+      </p>
+      <RegistrationApprovalList
+        pendingUsers={pendingUsers}
+        onRefresh={() => {
+          getPendingRegistrations().then((r) => {
+            if (r.data) handleRefreshed(r.data);
+          });
+        }}
+      />
     </div>
   );
 }

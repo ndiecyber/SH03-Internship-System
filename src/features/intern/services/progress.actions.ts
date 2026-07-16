@@ -9,28 +9,22 @@ export async function getInternProgressData() {
 
   const userId = session.user.id;
 
-  const [logbooks, evaluation, application] = await Promise.all([
-    prisma.logbook.findMany({
-      where: { userId },
-      orderBy: { date: "asc" },
-      select: { id: true, date: true, activity: true, progress: true, status: true, feedback: true }
-    }),
-    prisma.evaluation.findUnique({
-      where: { internId: userId },
-      select: {
-        finalScore: true,
-        technicalScore: true,
-        attitudeScore: true,
-        communicationScore: true,
-        attendanceScore: true,
-        notes: true
-      }
-    }),
-    prisma.application.findFirst({
-      where: { userId, status: "approved" },
-      include: { program: true }
-    })
-  ]);
+  const logbooks = await prisma.logbook.findMany({
+    where: { userId },
+    orderBy: { date: "asc" },
+    select: { id: true, date: true, activity: true, progress: true, status: true, feedback: true }
+  });
+  const evaluation = await prisma.evaluation.findUnique({
+    where: { internId: userId },
+    select: {
+      finalScore: true, technicalScore: true, attitudeScore: true,
+      communicationScore: true, attendanceScore: true, notes: true
+    }
+  });
+  const application = await prisma.application.findFirst({
+    where: { userId, status: "approved" },
+    include: { program: true }
+  });
 
   const total = logbooks.length;
   const approved = logbooks.filter((l) => l.status === "approved").length;

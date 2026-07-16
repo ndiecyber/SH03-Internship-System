@@ -72,7 +72,9 @@ export function SearchBar() {
       <Search className="h-4 w-4 text-slate-400 shrink-0" />
       <input
         ref={inputRef}
-        type="text"
+        type="search"
+        name="search-nav"
+        autoComplete="off"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => setIsFocused(true)}

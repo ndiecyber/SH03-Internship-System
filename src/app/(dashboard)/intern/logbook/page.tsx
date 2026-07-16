@@ -11,15 +11,13 @@ export default async function LogbookPage() {
   const session = await auth();
   const userId = session?.user?.id;
 
-  const [initialLogbooks, mentorAssignment] = await Promise.all([
-    getInternLogbooks(),
-    userId
-      ? prisma.mentorIntern.findUnique({
-          where: { internId: userId },
-          include: { mentor: { select: { name: true, email: true } } }
-        })
-      : null
-  ]);
+  const initialLogbooks = await getInternLogbooks();
+  const mentorAssignment = userId
+    ? await prisma.mentorIntern.findUnique({
+        where: { internId: userId },
+        include: { mentor: { select: { name: true, email: true } } }
+      })
+    : null;
 
   return (
     <InternLogbook
