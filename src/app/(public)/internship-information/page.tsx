@@ -20,7 +20,7 @@ export default function InternshipInformationPage() {
           </div>
           <p className="text-muted-foreground leading-relaxed">
             Our internship program is designed to provide hands-on experience in a fast-paced tech environment. 
-            You'll work closely with experienced mentors on real-world projects, developing both technical and professional skills.
+            You will work closely with experienced mentors on real-world projects, developing both technical and professional skills.
           </p>
           <ul className="space-y-2 mt-4">
             {['Hands-on real-world projects', '1-on-1 mentorship', 'Flexible working hours', 'Certificate upon completion'].map((item, i) => (
