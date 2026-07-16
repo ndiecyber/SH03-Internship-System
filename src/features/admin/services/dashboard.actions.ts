@@ -14,59 +14,44 @@ export async function getDashboardStats() {
     const PERIOD_START = new Date("2026-06-20T00:00:00.000Z");
     const PERIOD_END   = new Date("2026-10-20T23:59:59.999Z");
 
-    // Jalankan semua query secara paralel untuk performa maksimal
-    const [
-      totalApplicants,
-      totalInterns,
-      activeInterns,
-      completedInterns,
-      totalCertificates,
-      pendingApprovals,
-      totalMentors,
-      pendingLogbooks,
-      latestApplications,
-      programStatusCounts,
-      chartApplications,
-      chartCertificates,
-    ] = await Promise.all([
-      prisma.application.count(),
-      prisma.user.count({ where: { role: "INTERN", approvalStatus: "APPROVED" } }),
-      prisma.user.count({
-        where: { role: "INTERN", approvalStatus: "APPROVED", applications: { some: { status: "approved" } }, certificate: null }
-      }),
-      prisma.user.count({
-        where: { role: "INTERN", approvalStatus: "APPROVED", certificate: { isNot: null } }
-      }),
-      prisma.certificate.count(),
-      prisma.user.count({
-        where: { approvalStatus: "PENDING", role: { in: ["INTERN", "MENTOR"] } }
-      }),
-      prisma.user.count({ where: { role: "MENTOR", approvalStatus: "APPROVED" } }),
-      prisma.logbook.count({ where: { status: "pending" } }),
-      prisma.application.findMany({
-        take: 5,
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true, status: true, createdAt: true, cvUrl: true,
-          user: { select: { id: true, name: true, email: true } },
-          program: { select: { title: true } }
-        }
-      }),
-      prisma.internshipProgram.groupBy({
-        by: ["status"],
-        _count: { _all: true }
-      }),
-      prisma.application.findMany({
-        where: { status: "approved", updatedAt: { gte: PERIOD_START, lte: PERIOD_END } },
-        select: { updatedAt: true }
-      }),
-      prisma.certificate.findMany({
-        where: { issuedAt: { gte: PERIOD_START, lte: PERIOD_END } },
-        select: { issuedAt: true }
-      }),
-    ]);
+    // Sequential queries — Vercel Supabase pooler connection_limit=1
+    const totalApplicants   = await prisma.application.count();
+    const totalInterns      = await prisma.user.count({ where: { role: "INTERN", approvalStatus: "APPROVED" } });
+    const activeInterns     = await prisma.user.count({
+      where: { role: "INTERN", approvalStatus: "APPROVED", applications: { some: { status: "approved" } }, certificate: null }
+    });
+    const completedInterns  = await prisma.user.count({
+      where: { role: "INTERN", approvalStatus: "APPROVED", certificate: { isNot: null } }
+    });
+    const totalCertificates = await prisma.certificate.count();
+    const pendingApprovals  = await prisma.user.count({
+      where: { approvalStatus: "PENDING", role: { in: ["INTERN", "MENTOR"] } }
+    });
+    const totalMentors      = await prisma.user.count({ where: { role: "MENTOR", approvalStatus: "APPROVED" } });
+    const pendingLogbooks   = await prisma.logbook.count({ where: { status: "pending" } });
+    const latestApplications = await prisma.application.findMany({
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true, status: true, createdAt: true, cvUrl: true,
+        user: { select: { id: true, name: true, email: true } },
+        program: { select: { title: true } }
+      }
+    });
+    const programStatusCounts = await prisma.internshipProgram.groupBy({
+      by: ["status"],
+      _count: { _all: true }
+    });
+    const chartApplications = await prisma.application.findMany({
+      where: { status: "approved", updatedAt: { gte: PERIOD_START, lte: PERIOD_END } },
+      select: { updatedAt: true }
+    });
+    const chartCertificates = await prisma.certificate.findMany({
+      where: { issuedAt: { gte: PERIOD_START, lte: PERIOD_END } },
+      select: { issuedAt: true }
+    });
 
-    // Buat array awal setiap minggu
+    // Build weekly chart data in memory — no DB calls in loop
     const weekStarts: Date[] = [];
     const cursor = new Date(PERIOD_START);
     while (cursor <= PERIOD_END) {
@@ -74,7 +59,6 @@ export async function getDashboardStats() {
       cursor.setDate(cursor.getDate() + 7);
     }
 
-    // Proses di memory — tidak ada DB call di dalam loop
     const internChartData = weekStarts.map((weekStart) => {
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 6);
@@ -84,28 +68,21 @@ export async function getDashboardStats() {
       const onGoing = chartApplications.filter(
         (a) => a.updatedAt >= weekStart && a.updatedAt <= end
       ).length;
-
       const completed = chartCertificates.filter(
         (c) => c.issuedAt >= weekStart && c.issuedAt <= end
       ).length;
 
-      const label = weekStart.toLocaleDateString("id-ID", {
-        day: "numeric",
-        month: "short",
-        timeZone: "Asia/Jakarta"
-      });
-
-      return { date: label, onGoing, completed };
+      return {
+        date: weekStart.toLocaleDateString("id-ID", {
+          day: "numeric", month: "short", timeZone: "Asia/Jakarta"
+        }),
+        onGoing,
+        completed
+      };
     });
 
-    // Program status pie data
     const programPieData = programStatusCounts.map((p) => ({
-      name:
-        p.status === "published"
-          ? "On Going"
-          : p.status === "closed"
-          ? "Completed"
-          : "Upcoming",
+      name: p.status === "published" ? "On Going" : p.status === "closed" ? "Completed" : "Upcoming",
       value: p._count._all
     }));
 
