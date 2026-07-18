@@ -29,6 +29,20 @@ export async function getDashboardStats() {
     });
     const totalMentors      = await prisma.user.count({ where: { role: "MENTOR", approvalStatus: "APPROVED" } });
     const pendingLogbooks   = await prisma.logbook.count({ where: { status: "pending" } });
+
+    // Upcoming schedule — ambil 3 announcement dengan eventDate terdekat ke depan
+    const upcomingSchedule = await prisma.announcement.findMany({
+      where: {
+        status: "published",
+        eventDate: { gte: new Date() }
+      },
+      orderBy: { eventDate: "asc" },
+      take: 3,
+      select: {
+        id: true, title: true, audience: true,
+        eventDate: true, eventTime: true, meetLink: true
+      }
+    });
     const latestApplications = await prisma.application.findMany({
       take: 5,
       orderBy: { createdAt: "desc" },
@@ -98,7 +112,8 @@ export async function getDashboardStats() {
         pendingLogbooks,
         latestApplications,
         internChartData,
-        programPieData
+        programPieData,
+        upcomingSchedule
       }
     };
   } catch (error: unknown) {

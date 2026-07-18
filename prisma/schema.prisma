@@ -47,6 +47,7 @@ model User {
   certificate      Certificate?
   internEvaluation Evaluation?    @relation("InternEvaluation")
   mentorEvaluations Evaluation[]   @relation("MentorEvaluation")
+  announcements    Announcement[] @relation("AnnouncementAuthor")
 }
 
 
@@ -158,4 +159,20 @@ model Certificate {
   updatedAt  DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Announcement {
+  id        String    @id @default(cuid())
+  title     String
+  message   String    @db.Text
+  audience  String    @default("all")      // all, interns, mentors
+  status    String    @default("draft")    // draft, published
+  eventDate DateTime?                      // Tanggal pelaksanaan (opsional)
+  eventTime String?                        // Waktu pelaksanaan e.g. "09.00 - 11.00 WIB"
+  meetLink  String?                        // Link Discord/Google Meet (opsional)
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  author User @relation("AnnouncementAuthor", fields: [createdBy], references: [id], onDelete: Cascade)
 }
