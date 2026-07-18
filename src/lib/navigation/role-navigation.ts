@@ -10,6 +10,7 @@ export const roleNavigation: NavigationSection[] = [
       { href: "/intern/logbook", label: "Logbook" },
       { href: "/intern/progress", label: "Progress" },
       { href: "/intern/certificate", label: "Certificate" },
+      { href: "/intern/announcements", label: "Announcements" },
       { href: "/intern/profile", label: "Profile" }
     ]
   },
@@ -21,6 +22,7 @@ export const roleNavigation: NavigationSection[] = [
       { href: "/mentor/assigned-interns", label: "Assigned Interns" },
       { href: "/mentor/logbook-review", label: "Logbook Review" },
       { href: "/mentor/evaluation", label: "Evaluation" },
+      { href: "/mentor/announcements", label: "Announcements" },
       { href: "/mentor/profile", label: "Profile" }
     ]
   },
@@ -35,6 +37,7 @@ export const roleNavigation: NavigationSection[] = [
       { href: "/admin/internship-programs", label: "Programs" },
       { href: "/admin/monitoring", label: "Monitoring" },
       { href: "/admin/reports", label: "Reports" },
+      { href: "/admin/announcements", label: "Announcements" },
       { href: "/admin/settings", label: "Settings" }
     ]
   }

@@ -5,7 +5,7 @@ import { getDashboardStats } from "../services/dashboard.actions";
 import {
   Users, UserPlus, Award, ArrowRight,
   AlertCircle, Clock, FileText, UserCheck,
-  Calendar, Square, FilePlus, BarChart3
+  Calendar, Square, FilePlus, BarChart3, Link2
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -36,6 +36,14 @@ interface DashboardData {
   latestApplications: Application[];
   internChartData: ChartPoint[];
   programPieData: PiePoint[];
+  upcomingSchedule: {
+    id: string;
+    title: string;
+    audience: string;
+    eventDate: Date | null;
+    eventTime: string | null;
+    meetLink: string | null;
+  }[];
 }
 
 /* ─── Helpers ─────────────────────────────────── */
@@ -287,33 +295,47 @@ export function AdminDashboard({ initialData }: Readonly<{ initialData: Dashboar
           <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
             <div className="flex items-center justify-between mb-2.5">
               <h2 className="text-sm font-bold text-slate-800">Upcoming Schedule</h2>
-              <Link href="/admin/reports" className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 transition">View Calendar</Link>
+              <Link href="/admin/announcements" className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 transition">View Calendar</Link>
             </div>
-            <div className="space-y-2.5">
-              {[
-                { day: "26", month: "JUN", title: "Opening Ceremony", sub: "Batch 4", time: "10.00 - 11.00 WIB", type: "Online" },
-                { day: "01", month: "JUN", title: "Onboarding Session", sub: "Batch 4", time: "09.00 - 11.00 WIB", type: "Online" },
-                { day: "05", month: "JUN", title: "Mentor Meeting", sub: "All Program", time: "10.00 - 11.00 WIB", type: "Online" },
-              ].map((ev) => (
-                <div key={ev.day + ev.title} className="flex items-start gap-2.5">
-                  {/* Tanggal */}
-                  <div className="flex flex-col items-center justify-center shrink-0 w-8">
-                    <span className="text-sm font-extrabold text-slate-800 leading-none">{ev.day}</span>
-                    <span className="text-[9px] font-bold text-blue-600 uppercase">{ev.month}</span>
-                  </div>
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-semibold text-slate-800 leading-tight">{ev.title}</p>
-                    <p className="text-[10px] text-slate-400">{ev.sub}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <Clock className="h-2.5 w-2.5 text-slate-400 shrink-0" />
-                      <span className="text-[9px] text-slate-400">{ev.time}</span>
-                      <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[8px] font-bold text-blue-600">{ev.type}</span>
+            {data.upcomingSchedule.length === 0 ? (
+              <div className="py-4 text-center text-[11px] text-slate-400">No upcoming events.</div>
+            ) : (
+              <div className="space-y-2.5">
+                {data.upcomingSchedule.map((ev) => {
+                  const d = ev.eventDate ? new Date(ev.eventDate) : null;
+                  const day   = d ? d.getDate().toString().padStart(2, "0") : "—";
+                  const month = d ? d.toLocaleDateString("en-GB", { month: "short" }).toUpperCase() : "";
+                  const isOnline = !!ev.meetLink;
+                  return (
+                    <div key={ev.id} className="flex items-start gap-2.5">
+                      <div className="flex flex-col items-center justify-center shrink-0 w-8">
+                        <span className="text-sm font-extrabold text-slate-800 leading-none">{day}</span>
+                        <span className="text-[9px] font-bold text-blue-600 uppercase">{month}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-semibold text-slate-800 leading-tight truncate">{ev.title}</p>
+                        <p className="text-[10px] text-slate-400 capitalize">{ev.audience === "all" ? "All Participants" : ev.audience}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {ev.eventTime && (
+                            <>
+                              <Clock className="h-2.5 w-2.5 text-slate-400 shrink-0" />
+                              <span className="text-[9px] text-slate-400">{ev.eventTime}</span>
+                            </>
+                          )}
+                          {isOnline && (
+                            <a href={ev.meetLink!} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-0.5 rounded-full bg-blue-100 px-1.5 py-0.5 text-[8px] font-bold text-blue-600 hover:bg-blue-200 transition">
+                              <Link2 className="h-2 w-2" />
+                              {ev.meetLink!.includes("discord") ? "Discord" : "Online"}
+                            </a>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Tasks & To Do */}

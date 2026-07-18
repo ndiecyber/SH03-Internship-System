@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   LayoutDashboard, Users, FileText, Settings,
-  Award, GraduationCap, ClipboardList, Loader2
+  Award, GraduationCap, ClipboardList, Loader2, Megaphone
 } from "lucide-react";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -24,6 +24,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   "Programs":         GraduationCap,
   "Monitoring":       FileText,
   "Reports":          ClipboardList,
+  "Announcements":    Megaphone,
   "Settings":         Settings
 };
 

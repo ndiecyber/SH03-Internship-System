@@ -19,7 +19,8 @@ const emptyData = {
   pendingLogbooks: 0,
   latestApplications: [],
   internChartData: [],
-  programPieData: []
+  programPieData: [],
+  upcomingSchedule: []
 };
 
 export default async function AdminDashboardPage() {
