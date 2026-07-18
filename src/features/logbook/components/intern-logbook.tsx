@@ -126,6 +126,10 @@ export function InternLogbook({ initialLogbooks, hasMentor, mentorName }: Readon
       setError("Deskripsi aktivitas tidak boleh kosong.");
       return;
     }
+    if (progress < 100) {
+      setError("Logbook bisa disubmit ketika sudah 100 persen pengerjaan.");
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
@@ -268,6 +272,11 @@ export function InternLogbook({ initialLogbooks, hasMentor, mentorName }: Readon
     e.preventDefault();
     if (!editingLog) return;
     if (!editActivity) { setEditError("Deskripsi aktivitas tidak boleh kosong."); return; }
+
+    if (editProgress < 100) {
+      setEditError("Logbook bisa disubmit ketika sudah 100 persen pengerjaan.");
+      return;
+    }
 
     setIsResubmitting(true);
     setEditError(null);
