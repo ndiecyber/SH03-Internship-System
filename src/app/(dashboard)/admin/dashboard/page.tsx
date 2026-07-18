@@ -8,21 +8,27 @@ const AdminDashboard = dynamic(
 
 export const metadata = createPageMetadata("Admin Dashboard");
 
-export default async function AdminDashboardPage() {
-  const result = await getDashboardStats();
-  const dashboardData = result.data ?? {
-    totalApplicants: 0,
-    totalInterns: 0,
-    activeInterns: 0,
-    completedInterns: 0,
-    totalCertificates: 0,
-    pendingApprovals: 0,
-    totalMentors: 0,
-    pendingLogbooks: 0,
-    latestApplications: [],
-    internChartData: [],
-    programPieData: []
-  };
+const emptyData = {
+  totalApplicants: 0,
+  totalInterns: 0,
+  activeInterns: 0,
+  completedInterns: 0,
+  totalCertificates: 0,
+  pendingApprovals: 0,
+  totalMentors: 0,
+  pendingLogbooks: 0,
+  latestApplications: [],
+  internChartData: [],
+  programPieData: []
+};
 
-  return <AdminDashboard initialData={dashboardData} />;
+export default async function AdminDashboardPage() {
+  try {
+    const result = await getDashboardStats();
+    const dashboardData = result.data ?? emptyData;
+    return <AdminDashboard initialData={dashboardData} />;
+  } catch {
+    // DB timeout atau server error — render dengan empty data, tidak crash
+    return <AdminDashboard initialData={emptyData} />;
+  }
 }
