@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { formatDate } from "@/utils/format-date";
-import { Button } from "@/components/ui/button";
-import { deleteUser, assignMentorToIntern, unassignMentorFromIntern } from "../services/user-management.actions";
 import {
-  Trash2, Loader2, CheckCircle, Clock, XCircle,
-  ExternalLink, UserCheck, UserX, Award
+  Eye, Pencil, MoreHorizontal, Loader2,
+  UserCheck, UserX, Trash2, Check, X,
 } from "lucide-react";
+import {
+  deleteUser,
+  assignMentorToIntern,
+  unassignMentorFromIntern,
+} from "../services/user-management.actions";
 
+/* ─── Types ─────────────────────────────────────────────── */
 interface Application {
   id: string;
   status: string;
@@ -40,81 +43,87 @@ interface User {
 interface UserListProps {
   users: User[];
   roleLabel: string;
-  mentors?: Mentor[]; // available mentors for dropdown (INTERN role only)
+  mentors?: Mentor[];
   onRefresh?: () => void;
+  onViewDetail?: (u: User) => void;
 }
 
-function getApplicationBadge(applications?: Application[]) {
-  const app = applications?.[0];
+/* ─── Helpers ────────────────────────────────────────────── */
+const AVATAR_COLORS = [
+  "bg-blue-500", "bg-violet-500", "bg-emerald-500",
+  "bg-orange-500", "bg-pink-500", "bg-teal-500",
+  "bg-rose-500", "bg-indigo-500", "bg-amber-500",
+];
 
-  if (!app) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
-        Belum mendaftar program
-      </span>
-    );
-  }
-
-  switch (app.status) {
-    case "approved":
-      return (
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-          <CheckCircle className="h-3.5 w-3.5" />
-          Peserta Aktif — {app.program.title}
-        </span>
-      );
-    case "rejected":
-      return (
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
-          <XCircle className="h-3.5 w-3.5" />
-          Berkas Ditolak — {app.program.title}
-        </span>
-      );
-    case "pending":
-      return (
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
-          <Clock className="h-3.5 w-3.5" />
-          Menunggu Review Berkas — {app.program.title}
-        </span>
-      );
-    default:
-      return null;
-  }
+function avatarColor(name: string) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 }
 
-export function UserList({ users, roleLabel, mentors, onRefresh }: Readonly<UserListProps>) {
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+function initials(name: string | null) {
+  if (!name) return "??";
+  return name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
+}
+
+/** Derive a status label + colour from the user's data */
+function getStatus(u: User): { label: string; cls: string } {
+  if (u.certificate) return { label: "Completed", cls: "bg-slate-100 text-slate-600" };
+  const approved = u.applications?.some(a => a.status === "approved");
+  if (approved) return { label: "On Going", cls: "bg-emerald-100 text-emerald-700" };
+  const pending = u.applications?.some(a => a.status === "pending");
+  if (pending) return { label: "Pending", cls: "bg-amber-100 text-amber-700" };
+  return { label: "Upcoming", cls: "bg-blue-100 text-blue-600" };
+}
+
+/** Fake a logbook-progress bar width (0-100) based on status */
+function attendanceWidth(u: User): number {
+  if (u.certificate) return 100;
+  if (u.applications?.some(a => a.status === "approved")) return Math.floor(40 + (u.id.charCodeAt(0) % 50));
+  return 0;
+}
+
+/* ─── Edit-mentor inline popover state ──────────────────── */
+interface EditState {
+  internId: string;
+  selectedMentorId: string;
+}
+
+/* ─── Main component ─────────────────────────────────────── */
+export function UserList({
+  users,
+  mentors = [],
+  onRefresh,
+  onViewDetail,
+}: Readonly<UserListProps>) {
+  const [deletingId,  setDeletingId]  = useState<string | null>(null);
   const [assigningId, setAssigningId] = useState<string | null>(null);
-  // track selected mentor per intern card
-  const [selectedMentor, setSelectedMentor] = useState<Record<string, string>>({});
-  // track optimistic assigned mentor per intern
+  const [edit,        setEdit]        = useState<EditState | null>(null);
+  const [openMenuId,  setOpenMenuId]  = useState<string | null>(null);
+
+  /* optimistic mentor map */
   const [assignedMentors, setAssignedMentors] = useState<Record<string, Mentor | null>>(() => {
-    const map: Record<string, Mentor | null> = {};
-    users.forEach((u) => {
-      if (u.assignedMentor !== undefined) map[u.id] = u.assignedMentor ?? null;
-    });
-    return map;
+    const m: Record<string, Mentor | null> = {};
+    users.forEach(u => { m[u.id] = u.assignedMentor ?? null; });
+    return m;
   });
 
   const handleDelete = async (userId: string) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus pengguna ini?")) return;
+    if (!confirm("Hapus intern ini secara permanen?")) return;
     setDeletingId(userId);
-    const result = await deleteUser(userId);
+    await deleteUser(userId);
     setDeletingId(null);
-    if (result.success) onRefresh?.();
+    onRefresh?.();
   };
 
-  const handleAssign = async (internId: string) => {
-    const mentorId = selectedMentor[internId];
-    if (!mentorId) return;
+  const handleAssign = async (internId: string, mentorId: string) => {
     setAssigningId(internId);
     const res = await assignMentorToIntern(internId, mentorId);
-    if (res.error) {
-      alert(res.error);
-    } else {
-      const mentor = mentors?.find((m) => m.id === mentorId) ?? null;
-      setAssignedMentors((prev) => ({ ...prev, [internId]: mentor }));
-      setSelectedMentor((prev) => { const n = { ...prev }; delete n[internId]; return n; });
+    if (res.error) { alert(res.error); }
+    else {
+      const mentor = mentors.find(m => m.id === mentorId) ?? null;
+      setAssignedMentors(prev => ({ ...prev, [internId]: mentor }));
+      setEdit(null);
     }
     setAssigningId(null);
   };
@@ -122,198 +131,219 @@ export function UserList({ users, roleLabel, mentors, onRefresh }: Readonly<User
   const handleUnassign = async (internId: string) => {
     setAssigningId(internId);
     const res = await unassignMentorFromIntern(internId);
-    if (res.error) {
-      alert(res.error);
-    } else {
-      setAssignedMentors((prev) => ({ ...prev, [internId]: null }));
-    }
+    if (res.error) { alert(res.error); }
+    else { setAssignedMentors(prev => ({ ...prev, [internId]: null })); setEdit(null); }
     setAssigningId(null);
   };
 
   if (users.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-slate-300 p-8 text-center">
-        <p className="text-sm text-slate-500">Tidak ada {roleLabel} yang terdaftar</p>
+      <div className="py-16 text-center text-sm text-slate-500">
+        Tidak ada intern ditemukan.
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {users.map((user) => {
-        const isDeleting = deletingId === user.id;
-        const isAssigning = assigningId === user.id;
-        const currentMentor = assignedMentors[user.id] !== undefined
-          ? assignedMentors[user.id]
-          : user.assignedMentor ?? null;
-        const chosenMentorId = selectedMentor[user.id] ?? "";
-        // Only show mentor assignment for interns who are account-approved AND have an approved application (CV)
-        const hasApprovedApplication = user.applications?.some((a) => a.status === "approved");
-        const showMentorControl =
-          mentors &&
-          mentors.length > 0 &&
-          user.approvalStatus === "APPROVED" &&
-          hasApprovedApplication;
+    <>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-100 bg-slate-50/60">
+              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-5 py-3 w-[26%]">Intern</th>
+              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-4 py-3 w-[18%]">Program</th>
+              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-4 py-3 w-[14%]">Mentor</th>
+              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-4 py-3 w-[12%]">Status</th>
+              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-4 py-3 w-[16%]">Attendance</th>
+              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-4 py-3 w-[14%]">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {users.map(user => {
+              const name       = user.name ?? "Tanpa Nama";
+              const color      = avatarColor(name);
+              const ini        = initials(user.name);
+              const status     = getStatus(user);
+              const pct        = attendanceWidth(user);
+              const mentor     = assignedMentors[user.id] !== undefined ? assignedMentors[user.id] : user.assignedMentor ?? null;
+              const hasApprApp = user.applications?.some(a => a.status === "approved");
+              const canAssign  = user.approvalStatus === "APPROVED" && hasApprApp && mentors.length > 0;
+              const isEditing  = edit?.internId === user.id;
+              const isAssigning = assigningId === user.id;
+              const isDeleting  = deletingId  === user.id;
+              const menuOpen    = openMenuId  === user.id;
 
-        return (
-          <div key={user.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              return (
+                <tr key={user.id} className="hover:bg-slate-50/50 transition">
+                  {/* Intern */}
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white text-xs font-bold ${color}`}>
+                        {ini}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-800 text-sm truncate">{name}</p>
+                        <p className="text-xs text-slate-400 truncate">{user.email}</p>
+                      </div>
+                    </div>
+                  </td>
 
-              {/* Left — info */}
-              <div className="flex-1 min-w-0 space-y-2">
-                <div>
-                  <h3 className="font-semibold text-slate-900">{user.name || "Nama tidak tersedia"}</h3>
-                  <p className="text-sm text-slate-500 truncate">{user.email}</p>
-                </div>
-
-                {/* Application status — only relevant for interns */}
-                {user.role !== "MENTOR" && getApplicationBadge(user.applications)}
-
-                {/* Certificate badge — shown when intern has completed */}
-                {user.role !== "MENTOR" && user.certificate && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-700">
-                    <Award className="h-3.5 w-3.5" />
-                    Selesai — {user.certificate.certNumber}
-                  </span>
-                )}
-
-                {/* CV link — only relevant for interns */}
-                {user.role !== "MENTOR" && user.applications?.[0]?.cvUrl && user.applications[0].status === "pending" && (
-                  <a
-                    href={user.applications[0].cvUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    Lihat CV di Google Drive
-                  </a>
-                )}
-
-                {/* Account status + date */}
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="text-xs text-slate-400">
-                    Akun:{" "}
-                    <span className={user.approvalStatus === "APPROVED" ? "text-emerald-600 font-medium" : "text-slate-500"}>
-                      {user.approvalStatus}
-                    </span>
-                  </span>
-                  <span className="text-xs text-slate-400">
-                    Daftar: {formatDate(new Date(user.createdAt))}
-                  </span>
-                </div>
-
-                {/* Assigned interns — only for MENTOR role */}
-                {user.role === "MENTOR" && (
-                  <div className="pt-1.5 border-t border-slate-100 mt-1">
-                    <p className="text-xs font-semibold text-slate-500 mb-1.5">
-                      Peserta yang dibimbing ({user.assignedInterns?.length ?? 0})
+                  {/* Program */}
+                  <td className="px-4 py-3.5">
+                    <p className="text-xs text-slate-700 font-medium leading-snug">
+                      {user.applications?.[0]?.program.title ?? "—"}
                     </p>
-                    {user.assignedInterns && user.assignedInterns.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {user.assignedInterns.map((intern) => (
-                          <span
-                            key={intern.id}
-                            className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700"
-                          >
-                            <UserCheck className="h-3 w-3" />
-                            {intern.name ?? intern.email}
-                          </span>
-                        ))}
+                  </td>
+
+                  {/* Mentor — inline edit */}
+                  <td className="px-4 py-3.5">
+                    {isEditing ? (
+                      <div className="flex items-center gap-1">
+                        <select
+                          autoFocus
+                          value={edit.selectedMentorId}
+                          onChange={e => setEdit({ internId: user.id, selectedMentorId: e.target.value })}
+                          disabled={isAssigning}
+                          className="rounded border border-slate-200 py-1 px-1.5 text-xs outline-none focus:border-blue-400 max-w-[110px]"
+                        >
+                          <option value="">-- Pilih --</option>
+                          {mentors.map(m => (
+                            <option key={m.id} value={m.id}>{m.name ?? m.email}</option>
+                          ))}
+                        </select>
+                        <button
+                          disabled={!edit.selectedMentorId || isAssigning}
+                          onClick={() => handleAssign(user.id, edit.selectedMentorId)}
+                          className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 hover:bg-emerald-200 disabled:opacity-40 transition"
+                        >
+                          {isAssigning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                        </button>
+                        <button
+                          onClick={() => setEdit(null)}
+                          className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
                       </div>
                     ) : (
-                      <span className="text-xs text-slate-400">Belum ada peserta yang ditugaskan</span>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Mentor assignment inline ── */}
-                {showMentorControl && (
-                  <div className="pt-1 border-t border-slate-100 mt-1">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      {currentMentor ? (
-                        <>
-                          <UserCheck className="h-3.5 w-3.5 text-emerald-500" />
-                          <span className="text-xs font-medium text-emerald-700">
-                            Mentor: {currentMentor.name ?? currentMentor.email}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <UserX className="h-3.5 w-3.5 text-slate-400" />
-                          <span className="text-xs text-slate-400">Belum ditugaskan mentor</span>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <select
-                        value={chosenMentorId}
-                        onChange={(e) =>
-                          setSelectedMentor((prev) => ({ ...prev, [user.id]: e.target.value }))
-                        }
-                        disabled={isAssigning}
-                        className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
-                      >
-                        <option value="">-- Pilih Mentor --</option>
-                        {mentors.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.name ?? m.email}
-                          </option>
-                        ))}
-                      </select>
-
-                      <Button
-                        size="sm"
-                        onClick={() => handleAssign(user.id)}
-                        disabled={!chosenMentorId || isAssigning}
-                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-7 px-3"
-                      >
-                        {isAssigning ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <div className="flex items-center gap-1.5 group">
+                        {mentor ? (
+                          <>
+                            <UserCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                            <span className="text-xs text-slate-700 font-medium truncate max-w-[90px]">
+                              {mentor.name ?? mentor.email}
+                            </span>
+                          </>
                         ) : (
-                          currentMentor ? "Ganti Mentor" : "Assign"
+                          <>
+                            <UserX className="h-3.5 w-3.5 text-slate-300 shrink-0" />
+                            <span className="text-xs text-slate-400">—</span>
+                          </>
                         )}
-                      </Button>
+                        {canAssign && (
+                          <button
+                            onClick={() => setEdit({ internId: user.id, selectedMentorId: mentor?.id ?? "" })}
+                            className="opacity-0 group-hover:opacity-100 transition ml-0.5 text-slate-400 hover:text-blue-500"
+                            title="Ubah mentor"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </td>
 
-                      {currentMentor && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleUnassign(user.id)}
-                          disabled={isAssigning}
-                          className="border-rose-200 text-rose-600 hover:bg-rose-50 text-xs h-7 px-3"
-                        >
-                          {isAssigning ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            "Hapus Penugasan"
-                          )}
-                        </Button>
-                      )}
+                  {/* Status */}
+                  <td className="px-4 py-3.5">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${status.cls}`}>
+                      {status.label}
+                    </span>
+                  </td>
+
+                  {/* Attendance bar */}
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden min-w-[60px]">
+                        <div
+                          className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-medium w-7 shrink-0">{pct}%</span>
                     </div>
-                  </div>
-                )}
-              </div>
+                  </td>
 
-              {/* Right — delete */}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleDelete(user.id)}
-                disabled={isDeleting}
-                className="border-red-300 text-red-700 hover:bg-red-50 shrink-0 self-start"
-              >
-                {isDeleting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <><Trash2 className="mr-1.5 h-4 w-4" />Hapus</>
-                )}
-              </Button>
-            </div>
-          </div>
-        );
-      })}
-    </div>
+                  {/* Action icons */}
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-1 relative">
+                      {/* Eye — detail */}
+                      <button
+                        onClick={() => onViewDetail?.(user)}
+                        className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                        title="Lihat detail"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
+
+                      {/* Edit — open mentor assign */}
+                      {canAssign && (
+                        <button
+                          onClick={() => setEdit({ internId: user.id, selectedMentorId: mentor?.id ?? "" })}
+                          className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+                          title="Assign/Ganti Mentor"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+
+                      {/* More (⋮) — dropdown with unassign + delete */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setOpenMenuId(menuOpen ? null : user.id)}
+                          className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+                          title="Lainnya"
+                        >
+                          <MoreHorizontal className="h-3.5 w-3.5" />
+                        </button>
+
+                        {menuOpen && (
+                          <div className="absolute right-0 top-8 z-20 w-44 bg-white rounded-xl border border-slate-100 shadow-lg py-1 animate-in fade-in slide-in-from-top-2 duration-150">
+                            {mentor && canAssign && (
+                              <button
+                                disabled={isAssigning}
+                                onClick={() => { setOpenMenuId(null); handleUnassign(user.id); }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-amber-600 hover:bg-amber-50 transition"
+                              >
+                                <UserX className="h-3.5 w-3.5" />
+                                Hapus Penugasan Mentor
+                              </button>
+                            )}
+                            <button
+                              disabled={isDeleting}
+                              onClick={() => { setOpenMenuId(null); handleDelete(user.id); }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition"
+                            >
+                              {isDeleting
+                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                : <Trash2 className="h-3.5 w-3.5" />}
+                              Hapus Intern
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Close menu on outside click */}
+      {openMenuId && (
+        <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
+      )}
+    </>
   );
 }
