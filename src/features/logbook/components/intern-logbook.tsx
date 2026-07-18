@@ -20,7 +20,8 @@ import {
   ArrowRight,
   Pencil,
   UserX,
-  UserCheck
+  UserCheck,
+  Save
 } from "lucide-react";
 import { createLogbookAction, resubmitLogbookAction } from "../services/logbook.actions";
 import {
@@ -58,6 +59,39 @@ export function InternLogbook({ initialLogbooks, hasMentor, mentorName }: Readon
   const [logDate, setLogDate] = useState(today);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Draft state
+  const DRAFT_KEY = "intern-logbook-draft";
+  const [draftSaved, setDraftSaved] = useState(false);
+
+  // Save draft manual ke localStorage — tidak dikirim ke mentor
+  const handleSaveDraft = () => {
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ activity, progress, logDate }));
+      setDraftSaved(true);
+      setTimeout(() => setDraftSaved(false), 2500);
+    } catch { /* ignore */ }
+  };
+
+  // Load draft saat form dibuka
+  const openAddForm = () => {
+    setIsAdding(true);
+    resetGithub();
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const draft = JSON.parse(saved) as { activity?: string; progress?: number; logDate?: string };
+        if (draft.activity)  setActivity(draft.activity);
+        if (draft.progress !== undefined) setProgress(draft.progress);
+        if (draft.logDate)   setLogDate(draft.logDate);
+      }
+    } catch { /* ignore */ }
+  };
+
+  // Hapus draft setelah submit berhasil
+  const clearDraft = () => {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+  };
 
   // GitHub import states
   const [githubStep, setGithubStep] = useState<GithubStep>("idle");
@@ -101,6 +135,7 @@ export function InternLogbook({ initialLogbooks, hasMentor, mentorName }: Readon
       if (res.error) {
         setError(res.error);
       } else {
+        clearDraft(); // hapus draft setelah submit berhasil
         const newLog: LogbookEntry = {
           id: Math.random().toString(),
           date: logDate ? new Date(logDate) : new Date(),
@@ -205,11 +240,6 @@ export function InternLogbook({ initialLogbooks, hasMentor, mentorName }: Readon
       (c) => `[${c.timestamp}] ${c.repo.split("/")[1] ?? c.repo}: ${c.message}`
     );
     setActivity(lines.join("\n"));
-  };
-
-  const openAddForm = () => {
-    setIsAdding(true);
-    resetGithub();
   };
 
   const closeForm = () => {
@@ -324,7 +354,16 @@ export function InternLogbook({ initialLogbooks, hasMentor, mentorName }: Readon
           className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md space-y-5 animate-in fade-in slide-in-from-top-4 duration-300"
         >
           <div className="flex justify-between items-center border-b pb-3">
-            <h2 className="text-lg font-bold text-slate-800">Isi Aktivitas Harian</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-slate-800">Isi Aktivitas Harian</h2>
+              {(() => {
+                try {
+                  return localStorage.getItem(DRAFT_KEY)
+                    ? <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">Draft tersimpan</span>
+                    : null;
+                } catch { return null; }
+              })()}
+            </div>
             <button
               type="button"
               onClick={closeForm}
@@ -603,6 +642,15 @@ export function InternLogbook({ initialLogbooks, hasMentor, mentorName }: Readon
               className="border-slate-200 text-slate-600 hover:bg-slate-50 font-medium"
             >
               Batal
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSaveDraft}
+              className="border-blue-200 text-blue-600 hover:bg-blue-50 font-medium gap-1.5"
+            >
+              <Save className="h-3.5 w-3.5" />
+              {draftSaved ? "Tersimpan ✓" : "Simpan Draft"}
             </Button>
             <Button
               type="submit"
