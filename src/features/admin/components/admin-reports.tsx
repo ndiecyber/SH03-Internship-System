@@ -91,12 +91,11 @@ export function AdminReports({ initialPending, initialHistory }: Readonly<AdminR
 
   /* Auto-refresh pending every 5s */
   useEffect(() => {
-    if (pending.length === 0) return;
     const iv = setInterval(() => {
       getPendingRegistrations().then(r => { if (r.data) setPending(r.data); });
     }, 5000);
     return () => clearInterval(iv);
-  }, [pending.length]);
+  }, []);
 
   /* Counts */
   const approvedCount = history.filter(u => u.approvalStatus === "APPROVED").length;

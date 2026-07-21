@@ -157,10 +157,7 @@ export function UserListContainer({
     setAddLoading(true);
     setAddError(null);
     try {
-      // Optimistic add — just close modal; real data comes from auto-refresh
-      // In production, you'd call a server action here
-      setShowAddModal(false);
-      setAddName(""); setAddEmail(""); setAddProgram(""); setAddMentor("");
+      setAddError("Fitur tambah intern langsung belum tersedia. Intern dapat mendaftar sendiri melalui halaman registrasi.");
     } catch {
       setAddError("Gagal menambahkan intern.");
     } finally {

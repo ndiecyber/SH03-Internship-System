@@ -238,9 +238,11 @@ export function AdminMonitoring({ logbooks }: Readonly<AdminMonitoringProps>) {
           </div>
 
           {/* Count info */}
-          <p className="text-xs text-slate-400 text-right">
-            Menampilkan {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} dari {filtered.length} logbook
-          </p>
+          {filtered.length > 0 && (
+            <p className="text-xs text-slate-400 text-right">
+              Menampilkan {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} dari {filtered.length} logbook
+            </p>
+          )}
         </div>
 
         {/* Table */}
