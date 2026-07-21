@@ -11,7 +11,7 @@ import { reviewApplicationAction } from "../services/applicant.actions";
 import { Button } from "@/components/ui/button";
 
 type User = { id: string; name: string | null; email: string };
-type Program = { id: string; title: string; batch?: string | null };
+type Program = { id: string; title: string; period?: string | null };
 
 type Application = {
   id: string;
@@ -126,7 +126,7 @@ export function ApplicantManager({ initialApplications }: Readonly<ApplicantMana
         a.user.name ?? "-",
         a.user.email,
         a.program.title,
-        a.program.batch ?? "-",
+        a.program.period ?? "-",
         new Date(a.createdAt).toLocaleDateString("id-ID"),
         a.status,
       ])
@@ -294,7 +294,7 @@ export function ApplicantManager({ initialApplications }: Readonly<ApplicantMana
                 <tr className="border-b border-slate-100 bg-slate-50/60">
                   <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-5 py-3 w-[28%]">Applicant</th>
                   <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-4 py-3 w-[22%]">Program</th>
-                  <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-4 py-3 w-[10%]">Batch</th>
+                  <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-4 py-3 w-[10%]">Period</th>
                   <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-4 py-3 w-[14%]">Applied Date</th>
                   <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-4 py-3 w-[12%]">Status</th>
                   <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-4 py-3 w-[14%]">Action</th>
@@ -325,10 +325,10 @@ export function ApplicantManager({ initialApplications }: Readonly<ApplicantMana
                         <p className="text-sm text-slate-700 font-medium leading-snug">{app.program.title}</p>
                       </td>
 
-                      {/* Batch */}
+                      {/* Period */}
                       <td className="px-4 py-3.5">
                         <span className="text-xs text-slate-500 font-medium">
-                          {app.program.batch ?? "—"}
+                          {app.program.period ?? "—"}
                         </span>
                       </td>
 
@@ -495,8 +495,8 @@ export function ApplicantManager({ initialApplications }: Readonly<ApplicantMana
                   <p className="font-semibold text-slate-700">{detailApp.program.title}</p>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-3">
-                  <p className="text-xs text-slate-400 mb-0.5">Batch</p>
-                  <p className="font-semibold text-slate-700">{detailApp.program.batch ?? "—"}</p>
+                  <p className="text-xs text-slate-400 mb-0.5">Period</p>
+                  <p className="font-semibold text-slate-700">{detailApp.program.period ?? "—"}</p>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-3">
                   <p className="text-xs text-slate-400 mb-0.5">Tanggal Daftar</p>

@@ -103,7 +103,8 @@ export function InternLogbook({ initialLogbooks, hasMentor, mentorName }: Readon
   const [editDate, setEditDate]               = useState(today);
   const [editError, setEditError]             = useState<string | null>(null);
   const [editSuccess, setEditSuccess]         = useState(false);
-  const [isResubmitting, setIsResubmitting]   = useState(false);  const [githubLoading, setGithubLoading] = useState(false);
+  const [isResubmitting, setIsResubmitting]   = useState(false);
+  const [githubLoading, setGithubLoading] = useState(false);
   const [githubError, setGithubError] = useState<string | null>(null);
   const [repos, setRepos] = useState<GithubRepo[]>([]);
   const [selectedRepo, setSelectedRepo] = useState<string>(""); // full_name e.g. "user/repo"
