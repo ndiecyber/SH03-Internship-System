@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/utils/hash";
 import { revalidatePath } from "next/cache";
-import { changeEmailSchema } from "../schemas/profile.schema";
+import { changeEmailSchema, internProfileSchema } from "../schemas/profile.schema";
 
 export async function getProfileData() {
   const session = await auth();
@@ -20,12 +20,81 @@ export async function getProfileData() {
       createdAt: true,
       approvalStatus: true,
       githubUsername: true,
+      nickname: true,
+      phone: true,
+      gender: true,
+      birthPlace: true,
+      birthDate: true,
+      address: true,
+      city: true,
+      province: true,
+      institution: true,
+      faculty: true,
+      studyProgram: true,
+      studentId: true,
+      semester: true,
+      entryYear: true,
+      graduationYear: true,
+      portfolioUrl: true,
+      linkedinUrl: true,
+      skills: true,
+      bio: true,
+      organizationExperience: true,
+      workExperience: true,
+      internshipStartDate: true,
+      internshipEndDate: true,
+      internshipPosition: true,
+      internshipStatus: true,
+      supervisorName: true,
+      documentStatus: true,
       accounts: {
         where: { provider: "github" },
         select: { providerAccountId: true }
       }
     }
   });
+}
+
+export async function updateInternProfileAction(data: unknown) {
+  const session = await auth();
+  if (!session?.user?.id || session.user.role !== "INTERN") return { error: "Tidak berwenang." };
+  const parsed = internProfileSchema.safeParse(data);
+  if (!parsed.success) return { error: parsed.error.errors[0]?.message ?? "Data profil tidak valid." };
+
+  const value = parsed.data;
+  try {
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        ...value,
+        nickname: value.nickname || null,
+        phone: value.phone || null,
+        gender: value.gender || null,
+        birthPlace: value.birthPlace || null,
+        birthDate: value.birthDate ? new Date(value.birthDate) : null,
+        address: value.address || null,
+        city: value.city || null,
+        province: value.province || null,
+        institution: value.institution || null,
+        faculty: value.faculty || null,
+        studyProgram: value.studyProgram || null,
+        studentId: value.studentId || null,
+        portfolioUrl: value.portfolioUrl || null,
+        linkedinUrl: value.linkedinUrl || null,
+        githubUsername: value.githubUsername?.trim().replace(/^@/, "") || null,
+        skills: value.skills || null,
+        bio: value.bio || null,
+        organizationExperience: value.organizationExperience || null,
+        workExperience: value.workExperience || null,
+      },
+    });
+    revalidatePath("/intern/profile");
+    revalidatePath("/admin/interns");
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating intern profile:", error);
+    return { error: "Gagal memperbarui profil intern." };
+  }
 }
 
 export async function updateGithubUsernameAction(data: { githubUsername: string }) {

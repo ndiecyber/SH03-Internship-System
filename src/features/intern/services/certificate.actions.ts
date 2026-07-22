@@ -14,7 +14,7 @@ export async function getInternCertificate() {
         include: {
           internEvaluation: true,
           applications: {
-            where: { status: "approved" },
+            where: { status: "ACCEPTED" },
             include: { program: true },
             take: 1
           }

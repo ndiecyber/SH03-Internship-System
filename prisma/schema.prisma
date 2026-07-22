@@ -20,6 +20,36 @@ enum ApprovalStatus {
   REJECTED
 }
 
+enum ApplicationStatus {
+  PENDING
+  IN_REVIEW
+  INTERVIEW
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum SelectionSessionType {
+  ADMINISTRATION
+  INTERVIEW
+  TECHNICAL_TEST
+  HR_INTERVIEW
+  FINAL_INTERVIEW
+  OTHER
+}
+
+enum SelectionSessionStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+enum SelectionMethod {
+  ONLINE
+  OFFLINE
+}
+
 model User {
   id               String           @id @default(cuid())
   name             String?
@@ -34,6 +64,38 @@ model User {
   approvedAt       DateTime?        // When the registration was approved
   approvedBy       String?          // Admin ID who approved
   githubUsername   String?          // GitHub username for logbook auto-import
+  nickname         String?
+  phone            String?
+  gender           String?
+  birthPlace       String?
+  birthDate        DateTime?
+  address          String?          @db.Text
+  city             String?
+  province         String?
+  institution      String?
+  faculty          String?
+  studyProgram     String?
+  studentId        String?
+  semester         Int?
+  entryYear        Int?
+  graduationYear   Int?
+  portfolioUrl     String?
+  linkedinUrl      String?
+  skills           String?          @db.Text
+  bio              String?          @db.Text
+  organizationExperience String?    @db.Text
+  workExperience   String?          @db.Text
+  internshipStartDate DateTime?
+  internshipEndDate DateTime?
+  internshipPosition String?
+  internshipStatus String?          @default("NOT_STARTED")
+  supervisorName   String?
+  documentStatus   String?          @default("INCOMPLETE")
+  googleDriveRegistered Boolean     @default(false)
+  googleDriveFolderUrl String?
+  googleDriveFolderId String?
+  googleDriveRegisteredAt DateTime?
+  googleDriveRegisteredBy String?
   accounts         Account[]
   sessions         Session[]
   createdAt        DateTime         @default(now())
@@ -41,6 +103,7 @@ model User {
 
   // Custom Relations
   applications     Application[]
+  conductedSelectionSessions SelectionSession[] @relation("SelectionSessionInterviewer")
   logbooks         Logbook[]
   mentorRelations  MentorIntern[] @relation("MentorRelation")
   internRelation   MentorIntern?  @relation("InternRelation")
@@ -101,7 +164,7 @@ model Application {
   id        String   @id @default(cuid())
   userId    String
   programId String
-  status    String   @default("pending") // pending, approved, rejected
+  status    ApplicationStatus @default(PENDING)
   cvUrl     String?
   notes     String?
   createdAt DateTime @default(now())
@@ -109,6 +172,31 @@ model Application {
 
   user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   program InternshipProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  selectionSessions SelectionSession[]
+}
+
+model SelectionSession {
+  id            String                 @id @default(cuid())
+  applicationId String
+  title         String
+  type          SelectionSessionType
+  scheduledAt   DateTime
+  method        SelectionMethod
+  location      String?
+  meetingLink   String?
+  interviewerId String?
+  interviewerName String?
+  notes         String?                @db.Text
+  score         Float?
+  status        SelectionSessionStatus @default(SCHEDULED)
+  resultNotes   String?                @db.Text
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  interviewer User? @relation("SelectionSessionInterviewer", fields: [interviewerId], references: [id], onDelete: SetNull)
+
+  @@index([applicationId, scheduledAt])
 }
 
 model Logbook {

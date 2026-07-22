@@ -18,7 +18,7 @@ export async function getDashboardStats() {
     const totalApplicants   = await prisma.application.count();
     const totalInterns      = await prisma.user.count({ where: { role: "INTERN", approvalStatus: "APPROVED" } });
     const activeInterns     = await prisma.user.count({
-      where: { role: "INTERN", approvalStatus: "APPROVED", applications: { some: { status: "approved" } }, certificate: null }
+      where: { role: "INTERN", approvalStatus: "APPROVED", applications: { some: { status: "ACCEPTED" } }, certificate: null }
     });
     const completedInterns  = await prisma.user.count({
       where: { role: "INTERN", approvalStatus: "APPROVED", certificate: { isNot: null } }
@@ -57,7 +57,7 @@ export async function getDashboardStats() {
       _count: { _all: true }
     });
     const chartApplications = await prisma.application.findMany({
-      where: { status: "approved", updatedAt: { gte: PERIOD_START, lte: PERIOD_END } },
+      where: { status: "ACCEPTED", updatedAt: { gte: PERIOD_START, lte: PERIOD_END } },
       select: { updatedAt: true }
     });
     const chartCertificates = await prisma.certificate.findMany({

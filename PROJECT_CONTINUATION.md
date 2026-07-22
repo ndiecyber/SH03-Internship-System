@@ -1,294 +1,147 @@
 # LEXA Internship Management System - Project Continuation Guide
 
-## 📌 Project Overview
-**Project Name**: LEXA Internship Management System  
-**Tech Stack**: Next.js 15, TypeScript 5.7, PostgreSQL (Supabase), Prisma ORM, NextAuth 5 (JWT)  
-**Repository**: ndiecyber/SH03-Internship-System  
-**Branch**: main  
-**URL**: http://localhost:3000  
+## Project Overview
 
----
+- **Stack:** Next.js 15, TypeScript 5.7, PostgreSQL/Supabase, Prisma ORM, NextAuth 5 (JWT).
+- **Repository:** `ndiecyber/SH03-Internship-System` (`main`).
+- **Local URL:** `http://localhost:3000`.
+- **Roles:** `ADMIN`, `INTERN`, `MENTOR`.
 
-## ✅ Current Session Status (2026-07-07)
+## Current Session Status — 2026-07-22
 
-### Completed Features
-1. **Logo Implementation** ✅
-   - LEXA Software House logo added to login/register pages
-   - Logo optimized with Image component (220x80px)
+### Newly Completed: Selection, Intern Profile, and Google Drive Tracking
 
-2. **Email Validation** ✅
-   - @gmail.com requirement for INTERN/MENTOR roles
-   - Admin can use any email domain
-   - Validation in registerSchema using Zod refine()
+1. **Structured application workflow**
+   - `Application.status` is now an `ApplicationStatus` enum: `PENDING`, `IN_REVIEW`, `INTERVIEW`, `ACCEPTED`, `REJECTED`, and `WITHDRAWN`.
+   - Existing application data was migrated safely: `approved` to `ACCEPTED`, `rejected` to `REJECTED`, `review` to `IN_REVIEW`, and remaining values to `PENDING`.
+   - Admin can add a selection session from `/admin/applicants`; applicant details display the session history.
 
-3. **Registration Approval Workflow** ✅
-   - Database schema updated with approval fields: `approvalStatus`, `approvalReason`, `rejectedAt`, `approvedAt`, `approvedBy`
-   - Default: PENDING for INTERN/MENTOR, APPROVED for ADMIN
-   - Auth checks prevent PENDING/REJECTED users from login
-   - Server actions for approve/reject registration
+2. **Selection sessions**
+   - New `SelectionSession` model is related to an `Application` and optionally to the admin/interviewer.
+   - It stores title, type, schedule, online/offline method, location or meeting link, interviewer, notes, score, result notes, and status.
+   - Supported types: Administration, Interview, Technical Test, HR Interview, Final Interview, and Other.
+   - Supported statuses: Scheduled, Completed, Cancelled, and Rescheduled.
 
-4. **Real-time Features** ✅
-   - Real-time Registration Approvals (Reports page)
-   - Real-time User Lists (Interns & Mentors pages)
-   - Real-time Admin Dashboard (stats + logbooks)
-   - All using 5-second polling pattern via `setInterval`
+3. **Accepted applicant becomes an Intern without duplicate accounts**
+   - Admin acceptance now asks for confirmation.
+   - The existing applicant `User` is updated to `role: INTERN` and `approvalStatus: APPROVED`; no new account is created.
+   - If the intern has no mentor assignment, the first approved mentor is assigned when available.
+   - Application history remains stored and access to Intern features follows the existing role guards.
 
-5. **Session Persistence Fixes** ✅ (Latest)
-   - Extended session duration to 7 days
-   - JWT token auto-refresh every 24 hours
-   - Client-side session refetch every 5 minutes
-   - Added SessionProvider to root layout
-   - Enhanced auth config with `authorized` callback
-   - Proper trustHost & useSecureCookies configuration
+4. **Expanded Intern profile**
+   - `/intern/profile` now includes Personal Information, Education, Skill & Portfolio, and read-only Internship Information sections.
+   - Intern-editable information includes contact, address, education, portfolio/LinkedIn, GitHub username, skills, bio, organization experience, and work/project experience.
+   - Administrative internship fields remain Admin-controlled.
+   - A profile-completion percentage helps Interns identify incomplete information.
 
-### Pages & Routes Implemented
-- `/` - Public home page
-- `/login` - Public login (with logo)
-- `/register` - Public register (with logo)
-- `/internship-information` - Public info page
-- `/admin/dashboard` - Admin dashboard (real-time stats + logbooks)
-- `/admin/interns` - Admin: list all intern users (real-time)
-- `/admin/mentors` - Admin: list all mentor users (real-time)
-- `/admin/reports` - Admin: pending registration approvals (real-time)
-- `/admin/applicants` - Admin: applicants list
-- `/admin/internship-programs` - Admin: manage programs
-- `/admin/monitoring` - Admin: monitor logbooks
-- `/admin/settings` - Admin: settings
-- `/intern/dashboard` - Intern dashboard
-- `/intern/internship-registration` - Intern: apply for internship
-- `/intern/logbook` - Intern: daily logbook
-- `/intern/certificate` - Intern: view certificate
-- `/intern/profile` - Intern: edit profile
-- `/intern/progress` - Intern: view progress
-- `/mentor/dashboard` - Mentor dashboard
-- `/mentor/assigned-interns` - Mentor: view assigned interns
-- `/mentor/logbook-review` - Mentor: review intern logbooks
-- `/mentor/evaluation` - Mentor: evaluate interns
-- `/mentor/profile` - Mentor: edit profile
+5. **Google Drive registration tracking**
+   - Intern records now track Google Drive registration status, folder URL, folder ID, registration timestamp, and the admin ID that recorded it.
+   - `/admin/interns` has a Google Drive status column and filter.
+   - New route: `/admin/google-drive-interns`, listing Interns whose Google Drive status is not yet registered.
+   - Admin can register an Intern by saving the Google Drive folder URL and optional folder ID. This is intentionally internal tracking only; no Google Drive API credentials are needed.
 
-### Real-time Polling Pattern (Established)
-```typescript
-// Server Action Pattern:
-export async function getData() {
-  const result = await prisma.model.findMany(/* ... */);
-  return { data: result };
-}
+### Existing Features
 
-// Client Component Pattern:
-export function DataContainer({ initialData }) {
-  const [data, setData] = useState(initialData);
-  
-  useEffect(() => {
-    const interval = setInterval(() => {
-      getData().then(result => {
-        if (result.data) setData(result.data);
-      });
-    }, 5000); // 5 second polling
-    return () => clearInterval(interval);
-  }, []);
-  
-  return <DataList data={data} onRefresh={() => getData().then(...)} />;
-}
-```
+- Registration approval workflow (`PENDING`, `APPROVED`, `REJECTED`).
+- Role-based middleware and route guards.
+- Session persistence: 7-day JWT session, 24-hour server refresh, 5-minute client session refresh.
+- Admin, Intern, and Mentor dashboards; internship program registration; logbooks; evaluations; certificates; announcements; and mentor assignments.
+- Existing dashboard/user-list polling pattern for real-time updates.
 
----
+## Routes
 
-## 🔧 Key Technical Files
+### Admin
 
-### Authentication & Session
-- `src/auth.ts` - NextAuth configuration (JWT strategy, credentials provider)
-- `src/lib/auth/config.ts` - Auth config with 7-day session + 24h token refresh
-- `src/lib/auth/role-guards.ts` - Role-based path protection
-- `src/middleware.ts` - NextAuth middleware for route protection
-- `src/components/providers/session-provider.tsx` - Client SessionProvider wrapper
+- `/admin/dashboard`
+- `/admin/applicants` — application review and selection sessions
+- `/admin/interns` — intern list, mentor assignment, and Google Drive filter
+- `/admin/google-drive-interns` — Interns not yet recorded in Google Drive
+- `/admin/mentors`
+- `/admin/internship-programs`
+- `/admin/monitoring`
+- `/admin/reports`
+- `/admin/announcements`
+- `/admin/settings`
 
-### Features
-- `src/features/auth/` - Authentication (login, register, schemas, services)
-- `src/features/admin/` - Admin features (components, services, types)
-- `src/features/intern/` - Intern features
-- `src/features/mentor/` - Mentor features
-- `src/features/logbook/` - Logbook feature
-- `src/features/profile/` - Profile management
+### Intern
 
-### Database
-- `prisma/schema.prisma` - Database schema
-- `src/lib/db.ts` - Prisma client
-- Migrations: `20260702051631_init`, `20260702084439_extend_schema`, `20260707120641_add_registration_approval`
+- `/intern/dashboard`
+- `/intern/internship-registration`
+- `/intern/logbook`
+- `/intern/progress`
+- `/intern/certificate`
+- `/intern/announcements`
+- `/intern/profile`
 
-### Environment
-- `.env` - Database URLs, AUTH_SECRET, Supabase keys (not to be committed)
-- `.env.example` - Template
+### Mentor
 
----
+- `/mentor/dashboard`
+- `/mentor/assigned-interns`
+- `/mentor/logbook-review`
+- `/mentor/evaluation`
+- `/mentor/announcements`
+- `/mentor/profile`
 
-## 📊 Database Models Status
-- ✅ User (with approvalStatus, approvedAt, approvedBy, rejectedAt)
-- ✅ Application
-- ✅ Logbook
-- ✅ Evaluation
-- ✅ Certificate
-- ✅ InternshipProgram
-- ✅ MentorIntern
-- ✅ Enum: ApprovalStatus (PENDING, APPROVED, REJECTED)
+## Database Status
 
----
+Key models include `User`, `Application`, `SelectionSession`, `InternshipProgram`, `MentorIntern`, `Logbook`, `Evaluation`, `Certificate`, and `Announcement`.
 
-## 🧪 Testing Checklist for Next Session
+Applied migrations:
 
-### Session Persistence Testing
-- [ ] Login with each role (ADMIN, INTERN, MENTOR)
-- [ ] Switch between different features without logout
-- [ ] Refresh page (F5) - should stay logged in
-- [ ] Tab switch - session should persist
-- [ ] Wait 5+ minutes - session should auto-refresh
-- [ ] Test after 24 hours - token should refresh
+- `20260702051631_init`
+- `20260702084439_extend_schema`
+- `20260707120641_add_registration_approval`
+- `20260722100000_application_selection_and_intern_profile` — applied successfully to Supabase on 2026-07-22.
 
-### Real-time Features Testing
-- [ ] Admin Dashboard: stats update every 5 seconds
-- [ ] Admin Dashboard: logbooks appear/update in real-time
-- [ ] Admin Interns: new intern registration appears automatically
-- [ ] Admin Mentors: new mentor registration appears automatically
-- [ ] Admin Reports: new pending approvals appear automatically
-- [ ] Manual refresh buttons work on all pages
+Important schema files:
 
-### Login/Registration Testing
-- [ ] Non-@gmail.com email for INTERN role shows error
-- [ ] Non-@gmail.com email for MENTOR role shows error
-- [ ] @gmail.com email for INTERN/MENTOR works
-- [ ] ADMIN can use any email domain
-- [ ] Approved users can login
-- [ ] PENDING users see approval message
-- [ ] REJECTED users see rejection message
+- `prisma/schema.prisma`
+- `prisma/migrations/20260722100000_application_selection_and_intern_profile/migration.sql`
 
----
+## Key Implementation Files
 
-## 🚀 How to Continue
+- `src/features/admin/services/applicant.actions.ts` — application statuses and selection-session actions.
+- `src/features/admin/components/applicant-manager.tsx` — applicant review, selection form, and history.
+- `src/features/admin/services/user-management.actions.ts` — intern list queries, mentor assignment, and Google Drive registration action.
+- `src/features/admin/components/google-drive-interns.tsx` — Google Drive registration UI.
+- `src/features/profile/services/profile.actions.ts` — intern profile reads and updates.
+- `src/features/profile/components/profile-form.tsx` — expanded profile sections.
+- `src/lib/navigation/role-navigation.ts` — Admin Google Drive navigation item.
 
-### 1. Start Development Server
+## Verification Performed
+
+- `npx prisma generate` — passed.
+- `npx prisma migrate deploy` — passed; latest migration applied.
+- `npx tsc --noEmit` — passed.
+- `npm run build` — passed.
+
+The production build still emits the known non-blocking dynamic-server-usage messages for protected routes, because authentication reads request headers during static-generation analysis.
+
+## How to Continue
+
 ```bash
 npm run dev
-```
-Server runs on: http://localhost:3000
-
-### 2. Build & Test
-```bash
+npx prisma migrate deploy
 npm run build
 ```
-Checks for TypeScript errors, builds optimized production bundle.
 
-### 3. Database Operations
-```bash
-# Run migrations
-npx prisma migrate deploy
+Use `npx prisma migrate deploy` for existing environments. Do not run `prisma migrate reset` except on a disposable development database.
 
-# Reset database (development only)
-npx prisma migrate reset
+## Recommended Manual Tests
 
-# Seed database
-npx prisma db seed
-```
+1. Register an Intern, approve the account, create an application, add a selection session, then accept the application.
+2. Confirm the same account can access Intern routes and appears in Admin Interns.
+3. Complete the Intern profile and verify the completion percentage changes.
+4. In Admin Interns, filter `Google Drive: Belum`; register a Drive folder; confirm the Intern disappears from `/admin/google-drive-interns`.
+5. Verify mentor assignment and existing logbook, evaluation, certificate, and session-persistence flows still work.
 
-### 4. Test Users Setup
-Before testing, ensure you have test accounts:
-- Admin: any email, can approve registrations
-- Intern: must use @gmail.com email, needs admin approval
-- Mentor: must use @gmail.com email, needs admin approval
+## Possible Next Enhancements
 
----
+- UI controls for editing/completing/rescheduling individual selection sessions and recording final scores/results.
+- Admin profile-detail page and Admin-only editing of internship placement fields.
+- Google Drive API integration to create folders automatically after credentials are configured.
+- Email notifications for selection-session scheduling and rescheduling.
+- WebSocket-based real-time updates, comments/feedback, certificate PDF generation, and progress analytics.
 
-## 📝 Known Issues & Notes
-
-### Build Warnings (Non-blocking)
-- Dynamic server usage warnings for protected routes (expected - auth checks use headers)
-- Not errors, just info messages during static generation
-
-### Session Refresh Behavior
-- Client-side refetch: every 5 minutes
-- Server-side token refresh: every 24 hours
-- Window focus refresh: automatic
-- Ensures 7-day session without frequent re-login
-
----
-
-## 📌 Future Enhancements (Not Started)
-- WebSocket implementation for sub-5-second real-time
-- Email notifications for approvals/rejections
-- Dashboard logbook preview filters
-- Real-time monitoring page
-- Logbook comments/feedback system
-- Certificate PDF generation
-- Progress tracking analytics
-
----
-
-## 🔐 Important Reminders
-
-1. **Session Configuration**
-   - 7-day max age (change in `src/lib/auth/config.ts` if needed)
-   - JWT strategy used throughout
-   - SessionProvider required in root layout
-
-2. **Role-based Access**
-   - Routes protected via middleware + role-guards
-   - Check `getRequiredRoleForPath()` in `src/lib/auth/role-guards.ts`
-   - Redirects to `/login` if not authenticated
-   - Redirects to `/` if role doesn't match
-
-3. **Database Queries**
-   - Always use Prisma for queries (in `src/lib/db.ts`)
-   - Use server actions for mutations
-   - Use `revalidatePath()` after mutations for cache clearing
-
-4. **Real-time Pattern**
-   - Use 5-second polling with `setInterval` in `useEffect`
-   - Stop polling when data is empty (optimization)
-   - Add manual refresh button as backup
-   - Server action for data fetching
-
----
-
-## 📞 Quick Reference
-
-### Common Commands
-- `npm run dev` - Start dev server
-- `npm run build` - Build for production
-- `npm run lint` - Run ESLint
-- `npm run type-check` - Run TypeScript check
-
-### Important Endpoints
-- Auth routes: `/api/auth/[...nextauth]`
-- Health check: `/api/health`
-- Admin dashboard: `/admin/dashboard`
-- User management: `/admin/interns`, `/admin/mentors`
-
-### Key Components
-- `AppShell` - Main layout wrapper
-- `AppSidebar` - Left sidebar navigation
-- `TopNavbar` - Top navigation bar
-- `AdminDashboard` - Real-time dashboard (client component)
-- `UserListContainer` - Real-time user list (client component)
-- `RegistrationApprovalContainer` - Real-time approvals (client component)
-
----
-
-## 🎯 Next Steps Recommendation
-
-1. **Test Session Persistence** 
-   - Verify fixes work across all roles
-   - Test tab switching, refresh, wait time
-
-2. **Verify Real-time Updates**
-   - Confirm 5-second polling works
-   - Test from multiple users if possible
-
-3. **Test Full User Journey**
-   - Register → Wait for approval → Login → Navigate → Dashboard
-
-4. **Load Testing** (Optional)
-   - Test with multiple concurrent users
-   - Monitor performance with real-time polling
-
----
-
-**Last Updated**: 2026-07-07  
-**Session Status**: Session limit approaching, ready for continuation in new session
+**Last Updated:** 2026-07-22
+**Session Status:** Core selection, intern-profile, and Google Drive tracking features are implemented and verified.

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { User, KeyRound, Mail, CheckCircle, AlertCircle, Shield, Github, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signIn } from "next-auth/react";
-import { updateProfileAction, changePasswordAction, changeEmailAction } from "../services/profile.actions";
+import { updateProfileAction, changePasswordAction, changeEmailAction, updateInternProfileAction } from "../services/profile.actions";
 import { useRouter } from "next/navigation";
 
 type ProfileFormProps = {
@@ -16,6 +16,31 @@ type ProfileFormProps = {
     createdAt: Date;
     approvalStatus: string;
     githubUsername?: string | null;
+    nickname?: string | null;
+    phone?: string | null;
+    gender?: string | null;
+    birthPlace?: string | null;
+    birthDate?: Date | null;
+    address?: string | null;
+    city?: string | null;
+    province?: string | null;
+    institution?: string | null;
+    faculty?: string | null;
+    studyProgram?: string | null;
+    studentId?: string | null;
+    semester?: number | null;
+    entryYear?: number | null;
+    graduationYear?: number | null;
+    portfolioUrl?: string | null;
+    linkedinUrl?: string | null;
+    skills?: string | null;
+    bio?: string | null;
+    organizationExperience?: string | null;
+    workExperience?: string | null;
+    internshipPosition?: string | null;
+    internshipStatus?: string | null;
+    supervisorName?: string | null;
+    documentStatus?: string | null;
     accounts?: { providerAccountId: string }[];
   };
 };
@@ -120,6 +145,17 @@ export function ProfileForm({ user }: Readonly<ProfileFormProps>) {
 
   const isGithubConnected = user.accounts && user.accounts.length > 0;
   const [githubLoading, setGithubLoading] = useState(false);
+  const [internData, setInternData] = useState({
+    name: user.name ?? "", nickname: user.nickname ?? "", phone: user.phone ?? "", gender: user.gender ?? "",
+    birthPlace: user.birthPlace ?? "", birthDate: user.birthDate ? new Date(user.birthDate).toISOString().slice(0, 10) : "",
+    address: user.address ?? "", city: user.city ?? "", province: user.province ?? "", institution: user.institution ?? "",
+    faculty: user.faculty ?? "", studyProgram: user.studyProgram ?? "", studentId: user.studentId ?? "",
+    semester: user.semester?.toString() ?? "", entryYear: user.entryYear?.toString() ?? "", graduationYear: user.graduationYear?.toString() ?? "",
+    portfolioUrl: user.portfolioUrl ?? "", linkedinUrl: user.linkedinUrl ?? "", githubUsername: user.githubUsername ?? "",
+    skills: user.skills ?? "", bio: user.bio ?? "", organizationExperience: user.organizationExperience ?? "", workExperience: user.workExperience ?? "",
+  });
+  const [internLoading, setInternLoading] = useState(false);
+  const [internMessage, setInternMessage] = useState<string | null>(null);
 
   const joinedDate = new Date(user.createdAt).toLocaleDateString("id-ID", {
     day: "numeric", month: "long", year: "numeric",
@@ -174,6 +210,16 @@ export function ProfileForm({ user }: Readonly<ProfileFormProps>) {
   };
 
   const avatarInitial = (user.name?.[0] ?? user.email[0]).toUpperCase();
+  const profileFields = [internData.name, internData.phone, internData.institution, internData.studyProgram, internData.studentId, internData.city, internData.skills, internData.portfolioUrl];
+  const completeness = Math.round((profileFields.filter(Boolean).length / profileFields.length) * 100);
+  const updateInternField = (key: keyof typeof internData, value: string) => setInternData(current => ({ ...current, [key]: value }));
+  const handleInternProfileSave = async (event: React.FormEvent) => {
+    event.preventDefault(); setInternLoading(true); setInternMessage(null);
+    const numeric = (value: string) => value ? Number(value) : null;
+    const result = await updateInternProfileAction({ ...internData, semester: numeric(internData.semester), entryYear: numeric(internData.entryYear), graduationYear: numeric(internData.graduationYear) });
+    setInternLoading(false); setInternMessage(result.error ?? "Profil intern berhasil disimpan.");
+    if (!result.error) router.refresh();
+  };
 
   return (
     <div className="mx-auto max-w-4xl space-y-5 px-4 py-6 sm:px-6">
@@ -204,6 +250,36 @@ export function ProfileForm({ user }: Readonly<ProfileFormProps>) {
           </div>
         </div>
       </div>
+
+      {user.role === "INTERN" && (
+        <form onSubmit={handleInternProfileSave} className="space-y-5">
+          <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4 flex items-center justify-between gap-4">
+            <div><p className="font-semibold text-blue-900">Kelengkapan profil: {completeness}%</p><p className="text-xs text-blue-700">Lengkapi kontak, pendidikan, dan portfolio untuk administrasi magang.</p></div>
+            <div className="h-2 w-28 rounded-full bg-blue-100 overflow-hidden"><div className="h-full bg-blue-600" style={{ width: `${completeness}%` }} /></div>
+          </div>
+          <SectionCard icon={<User className="h-4 w-4 text-blue-600" />} title="Informasi Pribadi" description="Data kontak dan domisili yang dapat Anda perbarui">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[["Nama lengkap", "name"], ["Nama panggilan", "nickname"], ["Nomor telepon", "phone"], ["Tempat lahir", "birthPlace"], ["Kota/Kabupaten", "city"], ["Provinsi", "province"]].map(([label, key]) => <Field key={key} label={label}><input className={inputClass} value={internData[key as keyof typeof internData]} onChange={e => updateInternField(key as keyof typeof internData, e.target.value)} /></Field>)}
+              <Field label="Tanggal lahir"><input type="date" className={inputClass} value={internData.birthDate} onChange={e => updateInternField("birthDate", e.target.value)} /></Field>
+              <Field label="Jenis kelamin"><select className={inputClass} value={internData.gender} onChange={e => updateInternField("gender", e.target.value)}><option value="">Pilih</option><option>Laki-laki</option><option>Perempuan</option><option>Lainnya</option></select></Field>
+              <div className="sm:col-span-2"><Field label="Alamat lengkap"><textarea className={inputClass} rows={2} value={internData.address} onChange={e => updateInternField("address", e.target.value)} /></Field></div>
+            </div>
+          </SectionCard>
+          <SectionCard icon={<CalendarDays className="h-4 w-4 text-violet-600" />} title="Pendidikan" description="Informasi akademik untuk kebutuhan administrasi">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[["Institusi/Universitas", "institution"], ["Fakultas", "faculty"], ["Program studi", "studyProgram"], ["NIM", "studentId"], ["Semester", "semester"], ["Tahun masuk", "entryYear"], ["Perkiraan tahun lulus", "graduationYear"]].map(([label, key]) => <Field key={key} label={label}><input type={key.includes("Year") || key === "semester" ? "number" : "text"} className={inputClass} value={internData[key as keyof typeof internData]} onChange={e => updateInternField(key as keyof typeof internData, e.target.value)} /></Field>)}
+            </div>
+          </SectionCard>
+          <SectionCard icon={<Github className="h-4 w-4 text-slate-700" />} title="Skill & Portfolio" description="Tautan profesional dan pengalaman Anda">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><Field label="Portfolio URL"><input className={inputClass} value={internData.portfolioUrl} onChange={e => updateInternField("portfolioUrl", e.target.value)} /></Field><Field label="LinkedIn URL"><input className={inputClass} value={internData.linkedinUrl} onChange={e => updateInternField("linkedinUrl", e.target.value)} /></Field><Field label="Skills"><input className={inputClass} placeholder="React, Figma, ..." value={internData.skills} onChange={e => updateInternField("skills", e.target.value)} /></Field><Field label="GitHub username"><input className={inputClass} value={internData.githubUsername} onChange={e => updateInternField("githubUsername", e.target.value)} /></Field><div className="sm:col-span-2"><Field label="Tentang diri"><textarea className={inputClass} rows={2} value={internData.bio} onChange={e => updateInternField("bio", e.target.value)} /></Field></div></div>
+          </SectionCard>
+          <SectionCard icon={<Shield className="h-4 w-4 text-amber-600" />} title="Informasi Internship" description="Data penempatan dikelola oleh Admin">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm"><p><span className="text-muted-foreground">Posisi:</span> {user.internshipPosition ?? "Belum ditentukan"}</p><p><span className="text-muted-foreground">Supervisor:</span> {user.supervisorName ?? "Belum ditentukan"}</p><p><span className="text-muted-foreground">Dokumen:</span> {user.documentStatus ?? "INCOMPLETE"}</p></div>
+          </SectionCard>
+          {internMessage && <Alert type={internMessage.includes("berhasil") ? "success" : "error"} message={internMessage} />}
+          <Button type="submit" disabled={internLoading} className="bg-blue-600 hover:bg-blue-700 text-white">{internLoading ? "Menyimpan..." : "Simpan Profil Intern"}</Button>
+        </form>
+      )}
 
       {/* ── Edit Name ─────────────────────────────────────── */}
       <SectionCard

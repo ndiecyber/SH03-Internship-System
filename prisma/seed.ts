@@ -130,7 +130,7 @@ async function main() {
       data: {
         userId: intern.id,
         programId: program1.id,
-        status: "approved",
+        status: "ACCEPTED",
         notes: "Approved after technical interview."
       }
     });
@@ -143,7 +143,7 @@ async function main() {
       data: {
         userId: intern.id,
         programId: program2.id,
-        status: "approved"
+        status: "ACCEPTED"
       }
     });
   }
@@ -165,7 +165,7 @@ async function main() {
       data: {
         userId: tempUser.id,
         programId: i % 2 === 0 ? program2.id : program3.id,
-        status: i % 5 === 0 ? "pending" : i % 7 === 0 ? "rejected" : "approved"
+        status: i % 5 === 0 ? "PENDING" : i % 7 === 0 ? "REJECTED" : "ACCEPTED"
       }
     });
   }

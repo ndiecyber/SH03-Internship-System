@@ -16,7 +16,7 @@ export async function getAssignedInternsWithDetail() {
           internEvaluation: true,
           certificate: true,
           applications: {
-            where: { status: "approved" },
+            where: { status: "ACCEPTED" },
             include: { program: true },
             take: 1
           },

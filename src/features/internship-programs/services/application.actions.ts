@@ -38,7 +38,7 @@ export async function applyForProgramAction(formData: {
 
     // Block if user already has an approved application (accepted in a program)
     const approvedApp = await prisma.application.findFirst({
-      where: { userId: session.user.id, status: "approved" }
+      where: { userId: session.user.id, status: "ACCEPTED" }
     });
     if (approvedApp) {
       return { error: "Anda sudah diterima di program magang. Tidak dapat mendaftar ke program lain." };
@@ -59,7 +59,7 @@ export async function applyForProgramAction(formData: {
         programId: formData.programId,
         cvUrl: formData.cvUrl,
         notes: formData.notes,
-        status: "pending"
+        status: "PENDING"
       }
     });
 
@@ -90,7 +90,7 @@ export async function resubmitApplicationAction(formData: {
       where: {
         id: formData.applicationId,
         userId: session.user.id,
-        status: "rejected"
+        status: "REJECTED"
       }
     });
 
@@ -103,7 +103,7 @@ export async function resubmitApplicationAction(formData: {
       data: {
         cvUrl: formData.cvUrl,
         notes: formData.notes,
-        status: "pending"
+        status: "PENDING"
       }
     });
 

@@ -39,7 +39,7 @@ export default async function InternDashboardPage() {
     userId ? prisma.logbook.count({ where: { userId, status: "approved" } }) : Promise.resolve(0),
     userId ? prisma.logbook.findMany({ where: { userId }, select: { progress: true } }) : Promise.resolve([]),
     userId ? prisma.application.findFirst({
-      where: { userId, status: "approved" },
+      where: { userId, status: "ACCEPTED" },
       include: { program: { select: { title: true, period: true } } },
     }) : Promise.resolve(null),
     userId ? prisma.certificate.findUnique({ where: { userId } }) : Promise.resolve(null),

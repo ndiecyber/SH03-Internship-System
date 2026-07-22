@@ -27,6 +27,14 @@ export async function getUsersByRole(role: UserRole) {
         approvalStatus: true,
         createdAt: true,
         approvedAt: true,
+        googleDriveRegistered: true,
+        googleDriveFolderUrl: true,
+        googleDriveFolderId: true,
+        googleDriveRegisteredAt: true,
+        googleDriveRegisteredBy: true,
+        institution: true,
+        studyProgram: true,
+        internshipStatus: true,
         applications: {
           select: {
             id: true,
@@ -69,6 +77,31 @@ export async function getUsersByRole(role: UserRole) {
   } catch (error: unknown) {
     console.error(`Error fetching ${role} users:`, error);
     return { error: `Gagal mengambil data ${role}` };
+  }
+}
+
+export async function registerInternGoogleDriveAction(data: { internId: string; folderUrl: string; folderId?: string }) {
+  const session = await auth();
+  if (!session?.user?.id || session.user.role !== "ADMIN") return { error: "Unauthorized" };
+  const folderUrl = data.folderUrl.trim();
+  if (!folderUrl || !URL.canParse(folderUrl)) return { error: "URL folder Google Drive tidak valid." };
+  try {
+    await prisma.user.update({
+      where: { id: data.internId, role: "INTERN" },
+      data: {
+        googleDriveRegistered: true,
+        googleDriveFolderUrl: folderUrl,
+        googleDriveFolderId: data.folderId?.trim() || null,
+        googleDriveRegisteredAt: new Date(),
+        googleDriveRegisteredBy: session.user.id,
+      },
+    });
+    revalidatePath("/admin/interns");
+    revalidatePath("/admin/google-drive-interns");
+    return { success: true };
+  } catch (error) {
+    console.error("Error registering Google Drive folder:", error);
+    return { error: "Gagal menyimpan pendaftaran Google Drive." };
   }
 }
 

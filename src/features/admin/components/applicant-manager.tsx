@@ -7,7 +7,7 @@ import {
   ClipboardList, Clock, CheckCircle, XCircle,
   ChevronDown, MessageSquare, SortAsc
 } from "lucide-react";
-import { reviewApplicationAction } from "../services/applicant.actions";
+import { reviewApplicationAction, createSelectionSessionAction } from "../services/applicant.actions";
 import { Button } from "@/components/ui/button";
 
 type User = { id: string; name: string | null; email: string };
@@ -23,6 +23,7 @@ type Application = {
   createdAt: Date;
   user: User;
   program: Program;
+  selectionSessions?: { id: string; title: string; type: string; scheduledAt: Date; method: string; status: string; score: number | null; resultNotes: string | null; notes: string | null }[];
 };
 
 type ApplicantManagerProps = {
@@ -47,6 +48,7 @@ function getInitials(name: string | null) {
 }
 
 const PAGE_SIZE = 8;
+const normalizedStatus = (status: string) => ({ PENDING: "pending", IN_REVIEW: "review", INTERVIEW: "review", ACCEPTED: "approved", REJECTED: "rejected", WITHDRAWN: "rejected" }[status] ?? status);
 
 export function ApplicantManager({ initialApplications }: Readonly<ApplicantManagerProps>) {
   const [applications, setApplications] = useState<Application[]>(initialApplications);
@@ -60,19 +62,21 @@ export function ApplicantManager({ initialApplications }: Readonly<ApplicantMana
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectNotes, setRejectNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectionApp, setSelectionApp] = useState<Application | null>(null);
+  const [selectionForm, setSelectionForm] = useState({ title: "", type: "INTERVIEW", scheduledAt: "", method: "ONLINE", location: "", meetingLink: "", interviewerName: "", notes: "" });
 
   // Counts for stat cards & filter tabs
   const counts = useMemo(() => ({
     all: applications.length,
-    pending: applications.filter(a => a.status === "pending").length,
-    review: applications.filter(a => a.status === "review").length,
-    approved: applications.filter(a => a.status === "approved").length,
-    rejected: applications.filter(a => a.status === "rejected").length,
+    pending: applications.filter(a => normalizedStatus(a.status) === "pending").length,
+    review: applications.filter(a => normalizedStatus(a.status) === "review").length,
+    approved: applications.filter(a => normalizedStatus(a.status) === "approved").length,
+    rejected: applications.filter(a => normalizedStatus(a.status) === "rejected").length,
   }), [applications]);
 
   const filteredApps = useMemo(() => {
     let list = applications.filter(app => {
-      const matchStatus = filterStatus === "all" || app.status === filterStatus;
+      const matchStatus = filterStatus === "all" || normalizedStatus(app.status) === filterStatus;
       const q = searchQuery.toLowerCase();
       const matchSearch =
         (app.user.name?.toLowerCase().includes(q) ?? false) ||
@@ -117,6 +121,13 @@ export function ApplicantManager({ initialApplications }: Readonly<ApplicantMana
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCreateSelection = async (event: React.FormEvent) => {
+    event.preventDefault(); if (!selectionApp) return; setIsSubmitting(true);
+    const result = await createSelectionSessionAction({ applicationId: selectionApp.id, ...selectionForm, type: selectionForm.type as "INTERVIEW", method: selectionForm.method as "ONLINE" | "OFFLINE" });
+    if (result.error) alert(result.error); else { setApplications(current => current.map(app => app.id === selectionApp.id ? { ...app, status: selectionForm.type.includes("INTERVIEW") ? "INTERVIEW" : "IN_REVIEW", selectionSessions: [...(app.selectionSessions ?? []), { id: crypto.randomUUID(), title: selectionForm.title, type: selectionForm.type, scheduledAt: new Date(selectionForm.scheduledAt), method: selectionForm.method, status: "SCHEDULED", score: null, resultNotes: null, notes: selectionForm.notes }] } : app)); setSelectionApp(null); }
+    setIsSubmitting(false);
   };
 
   const handleExport = () => {
@@ -344,17 +355,17 @@ export function ApplicantManager({ initialApplications }: Readonly<ApplicantMana
                       {/* Status badge */}
                       <td className="px-4 py-3.5">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          app.status === "approved"
+                          normalizedStatus(app.status) === "approved"
                             ? "bg-emerald-100 text-emerald-700"
-                            : app.status === "rejected"
+                            : normalizedStatus(app.status) === "rejected"
                             ? "bg-red-100 text-red-600"
-                            : app.status === "review"
+                            : normalizedStatus(app.status) === "review"
                             ? "bg-blue-100 text-blue-600"
                             : "bg-amber-100 text-amber-600"
                         }`}>
-                          {app.status === "approved" ? "Accepted"
-                            : app.status === "rejected" ? "Rejected"
-                            : app.status === "review" ? "Review"
+                          {normalizedStatus(app.status) === "approved" ? "Accepted"
+                            : normalizedStatus(app.status) === "rejected" ? "Rejected"
+                            : normalizedStatus(app.status) === "review" ? "In Selection"
                             : "Pending"}
                         </span>
                       </td>
@@ -372,16 +383,17 @@ export function ApplicantManager({ initialApplications }: Readonly<ApplicantMana
                           </button>
 
                           {/* Check — approve (only if not approved) */}
-                          {app.status !== "approved" && (
+                          {app.status !== "ACCEPTED" && app.status !== "approved" && (
                             <button
                               disabled={isSubmitting}
-                              onClick={() => handleReview(app.id, "approved")}
+                              onClick={() => { if (confirm("Terima applicant ini sebagai Intern? Akun yang sama akan diaktifkan untuk akses intern.")) handleReview(app.id, "approved"); }}
                               className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition disabled:opacity-40"
                               title="Terima"
                             >
                               <Check className="h-3.5 w-3.5" />
                             </button>
                           )}
+                          <button onClick={() => { setSelectionApp(app); setSelectionForm({ title: "", type: "INTERVIEW", scheduledAt: "", method: "ONLINE", location: "", meetingLink: "", interviewerName: "", notes: "" }); }} className="text-xs text-blue-600 hover:underline" title="Tambah sesi seleksi">Seleksi</button>
 
                           {/* X — reject (only if not rejected) */}
                           {app.status !== "rejected" && (
@@ -507,11 +519,11 @@ export function ApplicantManager({ initialApplications }: Readonly<ApplicantMana
                 <div className="bg-slate-50 rounded-xl p-3">
                   <p className="text-xs text-slate-400 mb-0.5">Status</p>
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
-                    detailApp.status === "approved" ? "bg-emerald-100 text-emerald-700"
+                    (detailApp.status === "approved" || detailApp.status === "ACCEPTED") ? "bg-emerald-100 text-emerald-700"
                     : detailApp.status === "rejected" ? "bg-red-100 text-red-600"
                     : "bg-amber-100 text-amber-600"
                   }`}>
-                    {detailApp.status === "approved" ? "Diterima" : detailApp.status === "rejected" ? "Ditolak" : "Pending"}
+                    {(detailApp.status === "approved" || detailApp.status === "ACCEPTED") ? "Diterima" : (detailApp.status === "rejected" || detailApp.status === "REJECTED") ? "Ditolak" : detailApp.status}
                   </span>
                 </div>
               </div>
@@ -531,10 +543,13 @@ export function ApplicantManager({ initialApplications }: Readonly<ApplicantMana
                   Buka Tautan CV / Lampiran
                 </a>
               )}
+              <div className="space-y-2"><p className="text-xs font-semibold text-slate-500">RIWAYAT SELEKSI</p>{detailApp.selectionSessions?.length ? detailApp.selectionSessions.map(item => <div key={item.id} className="rounded-xl bg-slate-50 p-3 text-sm"><p className="font-semibold text-slate-700">{item.title}</p><p className="text-xs text-slate-500">{item.type} · {new Date(item.scheduledAt).toLocaleString("id-ID")} · {item.status}</p>{item.resultNotes && <p className="mt-1 text-xs">{item.resultNotes}</p>}</div>) : <p className="text-sm text-slate-400">Belum ada sesi seleksi.</p>}</div>
             </div>
           </div>
         </div>
       )}
+
+      {selectionApp && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"><form onSubmit={handleCreateSelection} className="w-full max-w-lg space-y-3 rounded-2xl bg-white p-6 shadow-xl"><div className="flex justify-between"><div><h3 className="font-bold">Tambah Sesi Seleksi</h3><p className="text-sm text-slate-500">{selectionApp.user.name ?? selectionApp.user.email}</p></div><button type="button" onClick={() => setSelectionApp(null)}><X /></button></div><input required placeholder="Judul sesi" className="w-full rounded border p-2" value={selectionForm.title} onChange={e => setSelectionForm({ ...selectionForm, title: e.target.value })} /><div className="grid grid-cols-2 gap-3"><select className="rounded border p-2" value={selectionForm.type} onChange={e => setSelectionForm({ ...selectionForm, type: e.target.value })}><option value="ADMINISTRATION">Administrasi</option><option value="INTERVIEW">Interview</option><option value="TECHNICAL_TEST">Technical Test</option><option value="HR_INTERVIEW">HR Interview</option><option value="FINAL_INTERVIEW">Final Interview</option><option value="OTHER">Lainnya</option></select><select className="rounded border p-2" value={selectionForm.method} onChange={e => setSelectionForm({ ...selectionForm, method: e.target.value })}><option value="ONLINE">Online</option><option value="OFFLINE">Offline</option></select></div><input required type="datetime-local" className="w-full rounded border p-2" value={selectionForm.scheduledAt} onChange={e => setSelectionForm({ ...selectionForm, scheduledAt: e.target.value })} /><input placeholder={selectionForm.method === "ONLINE" ? "Link meeting" : "Lokasi"} className="w-full rounded border p-2" value={selectionForm.method === "ONLINE" ? selectionForm.meetingLink : selectionForm.location} onChange={e => setSelectionForm(selectionForm.method === "ONLINE" ? { ...selectionForm, meetingLink: e.target.value } : { ...selectionForm, location: e.target.value })} /><input placeholder="Penilai / pewawancara" className="w-full rounded border p-2" value={selectionForm.interviewerName} onChange={e => setSelectionForm({ ...selectionForm, interviewerName: e.target.value })} /><textarea placeholder="Catatan" className="w-full rounded border p-2" value={selectionForm.notes} onChange={e => setSelectionForm({ ...selectionForm, notes: e.target.value })} /><div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setSelectionApp(null)}>Batal</Button><Button disabled={isSubmitting} className="bg-blue-600">{isSubmitting ? "Menyimpan..." : "Simpan sesi"}</Button></div></form></div>}
 
       {/* Reject Reason Modal */}
       {rejectingId && (

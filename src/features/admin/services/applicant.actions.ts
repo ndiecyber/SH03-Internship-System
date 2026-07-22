@@ -4,80 +4,164 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { sendApprovalEmail, sendRejectionEmail } from "@/services/email";
+import {
+  ApplicationStatus,
+  SelectionMethod,
+  SelectionSessionStatus,
+  SelectionSessionType,
+} from "@prisma/client";
+
+const adminOnly = async () => {
+  const session = await auth();
+  return session?.user?.role === "ADMIN" ? session : null;
+};
+
+function revalidateApplicationViews() {
+  revalidatePath("/admin/applicants");
+  revalidatePath("/admin/interns");
+  revalidatePath("/admin/google-drive-interns");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/intern/internship-registration");
+  revalidatePath("/mentor/assigned-interns");
+}
 
 export async function getAllApplications() {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
-    return [];
-  }
+  if (!(await adminOnly())) return [];
 
-  return await prisma.application.findMany({
+  return prisma.application.findMany({
     include: {
-      user: true,
-      program: true
+      user: { select: { id: true, name: true, email: true, role: true } },
+      program: true,
+      selectionSessions: {
+        include: { interviewer: { select: { id: true, name: true, email: true } } },
+        orderBy: { scheduledAt: "desc" },
+      },
     },
-    orderBy: { createdAt: "desc" }
+    orderBy: { createdAt: "desc" },
   });
 }
 
-export async function reviewApplicationAction(
+export async function updateApplicationStatusAction(
   applicationId: string,
-  status: "approved" | "rejected",
-  reviewNotes?: string
+  status: ApplicationStatus,
+  reviewNotes?: string,
 ) {
-  try {
-    const session = await auth();
-    if (!session?.user || session.user.role !== "ADMIN") {
-      return { error: "Unauthorized" };
-    }
+  const session = await adminOnly();
+  if (!session?.user?.id) return { error: "Unauthorized" };
 
-    const app = await prisma.application.update({
+  try {
+    const application = await prisma.application.update({
       where: { id: applicationId },
-      data: {
-        status,
-        notes: reviewNotes
-      },
-      include: {
-        user: true
-      }
+      data: { status, notes: reviewNotes?.trim() || undefined },
+      include: { user: true },
     });
 
-    // If approved, automatically assign to the first mentor if they don't have one
-    if (status === "approved") {
-      const existingAssignment = await prisma.mentorIntern.findUnique({
-        where: { internId: app.userId }
+    if (status === "ACCEPTED") {
+      // Reuse the applicant account; never create a second user.
+      await prisma.user.update({
+        where: { id: application.userId },
+        data: { role: "INTERN", approvalStatus: "APPROVED" },
       });
 
-      if (!existingAssignment) {
-        // Find first approved mentor only
-        const firstMentor = await prisma.user.findFirst({
-          where: { role: "MENTOR", approvalStatus: "APPROVED" }
+      const assignment = await prisma.mentorIntern.findUnique({ where: { internId: application.userId } });
+      if (!assignment) {
+        const mentor = await prisma.user.findFirst({
+          where: { role: "MENTOR", approvalStatus: "APPROVED" },
+          orderBy: { createdAt: "asc" },
         });
-
-        if (firstMentor) {
-          await prisma.mentorIntern.create({
-            data: {
-              mentorId: firstMentor.id,
-              internId: app.userId
-            }
-          });
+        if (mentor) {
+          await prisma.mentorIntern.create({ data: { internId: application.userId, mentorId: mentor.id } });
         }
       }
-      
-      // Send approval email
-      sendApprovalEmail(app.user.email, app.user.name ?? "Peserta").catch(err => console.error("Failed to send approval email:", err));
-    } else if (status === "rejected") {
-      // Send rejection email
-      sendRejectionEmail(app.user.email, app.user.name ?? "Peserta", reviewNotes).catch(err => console.error("Failed to send rejection email:", err));
+      sendApprovalEmail(application.user.email, application.user.name ?? "Peserta").catch(console.error);
     }
 
-    revalidatePath("/admin/applicants");
-    revalidatePath("/admin/dashboard");
-    revalidatePath("/intern/internship-registration");
-    revalidatePath("/mentor/assigned-interns");
+    if (status === "REJECTED") {
+      sendRejectionEmail(application.user.email, application.user.name ?? "Peserta", reviewNotes).catch(console.error);
+    }
+
+    revalidateApplicationViews();
     return { success: true };
   } catch (error) {
-    console.error("Error reviewing application:", error);
-    return { error: "Gagal memproses review pendaftaran." };
+    console.error("Error updating application status:", error);
+    return { error: "Gagal memperbarui status pendaftaran." };
   }
+}
+
+export async function createSelectionSessionAction(data: {
+  applicationId: string;
+  title: string;
+  type: SelectionSessionType;
+  scheduledAt: string;
+  method: SelectionMethod;
+  location?: string;
+  meetingLink?: string;
+  interviewerName?: string;
+  notes?: string;
+}) {
+  const session = await adminOnly();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+  if (!data.title.trim() || !data.scheduledAt) return { error: "Judul dan jadwal seleksi wajib diisi." };
+  if (data.method === "ONLINE" && data.meetingLink && !URL.canParse(data.meetingLink)) {
+    return { error: "Link meeting tidak valid." };
+  }
+
+  try {
+    await prisma.$transaction([
+      prisma.selectionSession.create({
+        data: {
+          applicationId: data.applicationId,
+          title: data.title.trim(),
+          type: data.type,
+          scheduledAt: new Date(data.scheduledAt),
+          method: data.method,
+          location: data.location?.trim() || null,
+          meetingLink: data.meetingLink?.trim() || null,
+          interviewerId: session.user.id,
+          interviewerName: data.interviewerName?.trim() || null,
+          notes: data.notes?.trim() || null,
+        },
+      }),
+      prisma.application.update({
+        where: { id: data.applicationId },
+        data: { status: data.type.includes("INTERVIEW") ? "INTERVIEW" : "IN_REVIEW" },
+      }),
+    ]);
+    revalidateApplicationViews();
+    return { success: true };
+  } catch (error) {
+    console.error("Error creating selection session:", error);
+    return { error: "Gagal menambahkan sesi seleksi." };
+  }
+}
+
+export async function updateSelectionSessionAction(data: {
+  id: string;
+  status: SelectionSessionStatus;
+  score?: number | null;
+  resultNotes?: string;
+  scheduledAt?: string;
+}) {
+  if (!(await adminOnly())) return { error: "Unauthorized" };
+  try {
+    await prisma.selectionSession.update({
+      where: { id: data.id },
+      data: {
+        status: data.status,
+        score: data.score ?? null,
+        resultNotes: data.resultNotes?.trim() || null,
+        ...(data.scheduledAt ? { scheduledAt: new Date(data.scheduledAt) } : {}),
+      },
+    });
+    revalidateApplicationViews();
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating selection session:", error);
+    return { error: "Gagal memperbarui sesi seleksi." };
+  }
+}
+
+// Compatibility wrapper for existing consumers while moving to the structured status enum.
+export async function reviewApplicationAction(applicationId: string, status: "approved" | "rejected", reviewNotes?: string) {
+  return updateApplicationStatusAction(applicationId, status === "approved" ? "ACCEPTED" : "REJECTED", reviewNotes);
 }

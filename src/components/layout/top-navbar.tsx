@@ -60,7 +60,7 @@ export async function TopNavbar() {
         });
       } else if (userRole === "INTERN") {
         const pendingApps = await prisma.application.count({
-          where: { userId: session.user.id, status: "pending" }
+          where: { userId: session.user.id, status: "PENDING" }
         });
         notifCount = pendingApps;
         if (pendingApps > 0) notifItems.push({

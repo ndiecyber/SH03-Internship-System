@@ -41,6 +41,8 @@ interface User {
   applications?: Application[];
   assignedMentor?: Mentor | null;
   certificate?: { certNumber: string; issuedAt: Date } | null;
+  googleDriveRegistered?: boolean;
+  googleDriveFolderUrl?: string | null;
 }
 
 interface UserListContainerProps {
@@ -81,6 +83,7 @@ export function UserListContainer({
   const [searchQuery, setSearchQuery] = useState("");
   const [filterProgram, setFilterProgram] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterGoogleDrive, setFilterGoogleDrive] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
 
   // Add Intern modal
@@ -132,9 +135,10 @@ export function UserListContainer({
         (filterStatus === "upcoming"  && (!u.applications || u.applications.length === 0)) ||
         (filterStatus === "completed" && hasCert);
 
-      return matchSearch && matchProgram && matchStatus;
+      const matchGoogleDrive = filterGoogleDrive === "all" || (filterGoogleDrive === "registered" ? u.googleDriveRegistered : !u.googleDriveRegistered);
+      return matchSearch && matchProgram && matchStatus && matchGoogleDrive;
     });
-  }, [users, searchQuery, filterProgram, filterStatus]);
+  }, [users, searchQuery, filterProgram, filterStatus, filterGoogleDrive]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated  = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -256,6 +260,9 @@ export function UserListContainer({
               {programTitles.map(t => (
                 <option key={t} value={t}>{t}</option>
               ))}
+            </select>
+            <select value={filterGoogleDrive} onChange={e => { setFilterGoogleDrive(e.target.value); setCurrentPage(1); }} className="rounded-lg border border-slate-200 bg-white py-1.5 pl-3 pr-8 text-xs text-slate-600 outline-none focus:border-blue-500">
+              <option value="all">Google Drive: Semua</option><option value="registered">Google Drive: Terdaftar</option><option value="unregistered">Google Drive: Belum</option>
             </select>
 
             {/* Status filter */}

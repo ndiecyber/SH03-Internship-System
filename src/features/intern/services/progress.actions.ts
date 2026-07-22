@@ -22,7 +22,7 @@ export async function getInternProgressData() {
     }
   });
   const application = await prisma.application.findFirst({
-    where: { userId, status: "approved" },
+    where: { userId, status: "ACCEPTED" },
     include: { program: true }
   });
 

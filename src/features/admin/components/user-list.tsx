@@ -38,6 +38,8 @@ interface User {
   assignedMentor?: Mentor | null;
   assignedInterns?: { id: string; name: string | null; email: string }[];
   certificate?: { certNumber: string; issuedAt: Date } | null;
+  googleDriveRegistered?: boolean;
+  googleDriveFolderUrl?: string | null;
 }
 
 interface UserListProps {
@@ -154,6 +156,7 @@ export function UserList({
               <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-4 py-3 w-[18%]">Program</th>
               <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-4 py-3 w-[14%]">Mentor</th>
               <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-4 py-3 w-[12%]">Status</th>
+              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-4 py-3">Google Drive</th>
               <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-4 py-3 w-[16%]">Attendance</th>
               <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-4 py-3 w-[14%]">Action</th>
             </tr>
@@ -194,6 +197,8 @@ export function UserList({
                       {user.applications?.[0]?.program.title ?? "—"}
                     </p>
                   </td>
+
+                  <td className="px-4 py-3.5"><span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${user.googleDriveRegistered ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{user.googleDriveRegistered ? "Terdaftar" : "Belum terdaftar"}</span></td>
 
                   {/* Mentor — inline edit */}
                   <td className="px-4 py-3.5">

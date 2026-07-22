@@ -33,6 +33,7 @@ export const roleNavigation: NavigationSection[] = [
       { href: "/admin/dashboard", label: "Dashboard" },
       { href: "/admin/applicants", label: "Applicants" },
       { href: "/admin/interns", label: "Interns" },
+      { href: "/admin/google-drive-interns", label: "Google Drive" },
       { href: "/admin/mentors", label: "Mentors" },
       { href: "/admin/internship-programs", label: "Programs" },
       { href: "/admin/monitoring", label: "Monitoring" },
